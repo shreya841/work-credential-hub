@@ -129,7 +129,7 @@ function EmployeeDetail() {
         </TabsContent>
         <TabsContent value="profile" className="mt-4 grid gap-5 lg:grid-cols-2">
           <Card className="border-border/60"><CardHeader><CardTitle>Skills</CardTitle></CardHeader>
-            <CardContent className="flex flex-wrap gap-2">{e.skills.map((s) => <Badge key={s} variant="outline">{s}</Badge>)}</CardContent>
+            <CardContent className="flex flex-wrap gap-2">{e.skills.map((s: string) => <Badge key={s} variant="outline">{s}</Badge>)}</CardContent>
           </Card>
           <Card className="border-border/60"><CardHeader><CardTitle>Achievements</CardTitle></CardHeader>
             <CardContent className="space-y-3">
