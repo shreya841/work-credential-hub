@@ -8,6 +8,8 @@ import {
   Search,
   ScrollText,
   BadgeCheck,
+  Settings,
+  User,
 } from "lucide-react";
 import {
   Sidebar,
@@ -21,21 +23,30 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/components/auth-provider";
+import { SIDEBAR_ITEMS } from "@/lib/auth/rbac";
 
-const items = [
-  { title: "Dashboard", url: "/app/dashboard", icon: LayoutDashboard },
-  { title: "Companies", url: "/app/companies", icon: Building2 },
-  { title: "Employees", url: "/app/employees", icon: Users },
-  { title: "Performance", url: "/app/performance", icon: TrendingUp },
-  { title: "HR Search", url: "/app/search", icon: Search },
-  { title: "Consent", url: "/app/consent", icon: ShieldCheck },
-  { title: "Audit Logs", url: "/app/audit", icon: ScrollText },
+const allItems = [
+  { key: "dashboard", title: "Dashboard", url: "/app/dashboard", icon: LayoutDashboard },
+  { key: "companies", title: "Companies", url: "/app/companies", icon: Building2 },
+  { key: "employees", title: "Employees", url: "/app/employees", icon: Users },
+  { key: "performance", title: "Performance", url: "/app/performance", icon: TrendingUp },
+  { key: "search", title: "HR Search", url: "/app/search", icon: Search },
+  { key: "verification", title: "Verification", url: "/app/verification", icon: BadgeCheck },
+  { key: "consent", title: "Consent", url: "/app/consent", icon: ShieldCheck },
+  { key: "audit", title: "Audit Logs", url: "/app/audit", icon: ScrollText },
+  { key: "settings", title: "Settings", url: "/app/settings", icon: Settings },
+  { key: "profile", title: "My Profile", url: "/app/profile", icon: User },
 ];
 
 export function AppSidebar() {
+  const { user } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+
+  const allowedKeys = SIDEBAR_ITEMS[user.role] || [];
+  const items = allItems.filter((item) => allowedKeys.includes(item.key));
 
   return (
     <Sidebar collapsible="icon">

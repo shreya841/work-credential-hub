@@ -1,3 +1,6 @@
+import * as dotenv from "dotenv";
+dotenv.config();
+
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";

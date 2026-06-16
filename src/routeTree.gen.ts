@@ -14,9 +14,13 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
+import { Route as AuthResetRouteImport } from './routes/auth.reset'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
+import { Route as AppVerificationRouteImport } from './routes/app.verification'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppSearchRouteImport } from './routes/app.search'
+import { Route as AppProfileRouteImport } from './routes/app.profile'
 import { Route as AppPerformanceRouteImport } from './routes/app.performance'
 import { Route as AppEmployeesRouteImport } from './routes/app.employees'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
@@ -50,6 +54,11 @@ const AuthSignupRoute = AuthSignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthResetRoute = AuthResetRouteImport.update({
+  id: '/reset',
+  path: '/reset',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -60,9 +69,24 @@ const AuthForgotRoute = AuthForgotRouteImport.update({
   path: '/forgot',
   getParentRoute: () => AuthRoute,
 } as any)
+const AppVerificationRoute = AppVerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSearchRoute = AppSearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPerformanceRoute = AppPerformanceRouteImport.update({
@@ -111,9 +135,13 @@ export interface FileRoutesByFullPath {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/employees': typeof AppEmployeesRouteWithChildren
   '/app/performance': typeof AppPerformanceRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/search': typeof AppSearchRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/verification': typeof AppVerificationRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset': typeof AuthResetRoute
   '/auth/signup': typeof AuthSignupRoute
   '/profile/$id': typeof ProfileIdRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
@@ -128,9 +156,13 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/employees': typeof AppEmployeesRouteWithChildren
   '/app/performance': typeof AppPerformanceRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/search': typeof AppSearchRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/verification': typeof AppVerificationRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset': typeof AuthResetRoute
   '/auth/signup': typeof AuthSignupRoute
   '/profile/$id': typeof ProfileIdRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
@@ -146,9 +178,13 @@ export interface FileRoutesById {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/employees': typeof AppEmployeesRouteWithChildren
   '/app/performance': typeof AppPerformanceRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/search': typeof AppSearchRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/verification': typeof AppVerificationRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
+  '/auth/reset': typeof AuthResetRoute
   '/auth/signup': typeof AuthSignupRoute
   '/profile/$id': typeof ProfileIdRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
@@ -165,9 +201,13 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/employees'
     | '/app/performance'
+    | '/app/profile'
     | '/app/search'
+    | '/app/settings'
+    | '/app/verification'
     | '/auth/forgot'
     | '/auth/login'
+    | '/auth/reset'
     | '/auth/signup'
     | '/profile/$id'
     | '/app/employees/$id'
@@ -182,9 +222,13 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/employees'
     | '/app/performance'
+    | '/app/profile'
     | '/app/search'
+    | '/app/settings'
+    | '/app/verification'
     | '/auth/forgot'
     | '/auth/login'
+    | '/auth/reset'
     | '/auth/signup'
     | '/profile/$id'
     | '/app/employees/$id'
@@ -199,9 +243,13 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/employees'
     | '/app/performance'
+    | '/app/profile'
     | '/app/search'
+    | '/app/settings'
+    | '/app/verification'
     | '/auth/forgot'
     | '/auth/login'
+    | '/auth/reset'
     | '/auth/signup'
     | '/profile/$id'
     | '/app/employees/$id'
@@ -251,6 +299,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSignupRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/auth/reset': {
+      id: '/auth/reset'
+      path: '/reset'
+      fullPath: '/auth/reset'
+      preLoaderRoute: typeof AuthResetRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/auth/login': {
       id: '/auth/login'
       path: '/login'
@@ -265,11 +320,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/app/verification': {
+      id: '/app/verification'
+      path: '/verification'
+      fullPath: '/app/verification'
+      preLoaderRoute: typeof AppVerificationRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/search': {
       id: '/app/search'
       path: '/search'
       fullPath: '/app/search'
       preLoaderRoute: typeof AppSearchRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/profile': {
+      id: '/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/performance': {
@@ -343,7 +419,10 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppEmployeesRoute: typeof AppEmployeesRouteWithChildren
   AppPerformanceRoute: typeof AppPerformanceRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppSearchRoute: typeof AppSearchRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppVerificationRoute: typeof AppVerificationRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -353,7 +432,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppEmployeesRoute: AppEmployeesRouteWithChildren,
   AppPerformanceRoute: AppPerformanceRoute,
+  AppProfileRoute: AppProfileRoute,
   AppSearchRoute: AppSearchRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppVerificationRoute: AppVerificationRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -361,12 +443,14 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 interface AuthRouteChildren {
   AuthForgotRoute: typeof AuthForgotRoute
   AuthLoginRoute: typeof AuthLoginRoute
+  AuthResetRoute: typeof AuthResetRoute
   AuthSignupRoute: typeof AuthSignupRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthForgotRoute: AuthForgotRoute,
   AuthLoginRoute: AuthLoginRoute,
+  AuthResetRoute: AuthResetRoute,
   AuthSignupRoute: AuthSignupRoute,
 }
 
@@ -381,3 +465,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
