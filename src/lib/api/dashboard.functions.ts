@@ -291,3 +291,79 @@ export const getRecentActivity = createServerFn({ method: "GET" }).handler(
     }));
   }
 );
+
+// ── getDepartmentAnalytics ───────────────────────────────────────────
+
+export const getDepartmentAnalytics = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const user = await requireAuth();
+    const db = getDb();
+
+    const companyFilter =
+      user.role !== "super_admin" && user.companyId
+        ? sql`AND ${schema.employees.companyId} = ${user.companyId}`
+        : sql``;
+
+    const rows = await db.execute(sql`
+      SELECT
+        COALESCE(${schema.employees.department}, 'General') AS department,
+        COUNT(*)::int AS employee_count,
+        ROUND(AVG(${schema.employees.rating})::numeric, 2)::float AS avg_rating
+      FROM ${schema.employees}
+      WHERE ${schema.employees.status} = 'active'
+      ${companyFilter}
+      GROUP BY COALESCE(${schema.employees.department}, 'General')
+      ORDER BY avg_rating DESC
+    `);
+
+    return rows.rows as Array<{
+      department: string;
+      employee_count: number;
+      avg_rating: number;
+    }>;
+  }
+);
+
+// ── getVerificationStats ─────────────────────────────────────────────
+
+export const getVerificationStats = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const user = await requireAuth();
+    const db = getDb();
+
+    let companyFilter = sql``;
+    if (user.role === "employee") {
+      const [employee] = await db
+        .select({ id: schema.employees.id })
+        .from(schema.employees)
+        .where(eq(schema.employees.userId, user.id))
+        .limit(1);
+
+      if (!employee) {
+        return { pending: 0, approved: 0, denied: 0, expired: 0 };
+      }
+      companyFilter = sql`AND ${schema.verificationRequests.employeeId} = ${employee.id}`;
+    } else if (user.role === "hr" || user.role === "company_admin") {
+      companyFilter = sql`AND ${schema.verificationRequests.requestedById} = ${user.id}`;
+    }
+
+    const rows = await db.execute(sql`
+      SELECT
+        status,
+        COUNT(*)::int AS count
+      FROM ${schema.verificationRequests}
+      WHERE 1=1
+      ${companyFilter}
+      GROUP BY status
+    `);
+
+    const stats = { pending: 0, approved: 0, denied: 0, expired: 0 };
+    for (const row of rows.rows as Array<{ status: string; count: number }>) {
+      if (row.status in stats) {
+        stats[row.status as keyof typeof stats] = row.count;
+      }
+    }
+
+    return stats;
+  }
+);

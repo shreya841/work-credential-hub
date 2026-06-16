@@ -17,11 +17,38 @@ import { logoutUser } from "@/lib/api/auth.functions";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { ROLE_LABELS } from "@/lib/auth/rbac";
 import { Badge } from "@/components/ui/badge";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { listNotifications, markAsRead, markAllAsRead } from "@/lib/api/notifications.functions";
+import { toast } from "sonner";
 
 export function Topbar() {
   const { theme, toggle } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => listNotifications(),
+    refetchInterval: 10000,
+  });
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const readMutation = useMutation({
+    mutationFn: (id: string) => markAsRead({ data: { id } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const readAllMutation = useMutation({
+    mutationFn: () => markAllAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("All notifications marked as read");
+    },
+  });
 
   const handleSignOut = async () => {
     try {
@@ -54,9 +81,53 @@ export function Topbar() {
         <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Notifications">
-          <Bell className="h-4 w-4" />
-        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-80 p-0" align="end">
+            <div className="flex items-center justify-between border-b p-3">
+              <span className="font-semibold text-sm">Notifications</span>
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  className="text-xs text-primary hover:text-primary/80 h-7 px-2"
+                  onClick={() => readAllMutation.mutate()}
+                  disabled={readAllMutation.isPending}
+                >
+                  Mark all read
+                </Button>
+              )}
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-4 text-center text-xs text-muted-foreground">
+                  No notifications yet.
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className={`p-3 border-b text-xs transition cursor-pointer hover:bg-muted/40 ${!n.read ? "bg-muted/10 font-medium border-l-2 border-l-primary" : ""}`}
+                    onClick={() => !n.read && readMutation.mutate(n.id)}
+                  >
+                    <div className="flex justify-between items-start gap-1">
+                      <span className="font-semibold text-foreground">{n.title}</span>
+                      <span className="text-[9px] text-muted-foreground shrink-0">{new Date(n.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <p className="text-muted-foreground mt-1 text-[11px] leading-relaxed">{n.message}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

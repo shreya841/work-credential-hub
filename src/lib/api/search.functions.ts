@@ -18,6 +18,19 @@ export const searchEmployees = createServerFn({ method: "POST" })
     const user = await requireAuth();
     const db = getDb();
 
+    // Only verified companies can search employees
+    if (user.role !== "super_admin" && user.companyId) {
+      const [company] = await db
+        .select({ status: schema.companies.status })
+        .from(schema.companies)
+        .where(eq(schema.companies.id, user.companyId))
+        .limit(1);
+
+      if (!company || company.status !== "verified") {
+        throw new Error("Only verified companies can search employees");
+      }
+    }
+
     const searchPattern = `%${data.query}%`;
     const searchCondition = or(
       ilike(schema.employees.fullName, searchPattern),

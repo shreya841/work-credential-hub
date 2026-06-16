@@ -17,6 +17,7 @@ export interface User {
   role: Role;
   companyId: string | null;
   avatarUrl: string | null;
+  status: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +42,7 @@ export interface Company {
   website: string;
   logoUrl: string | null;
   verified: boolean;
+  status: "pending" | "verified" | "suspended";
   employeeCount: number;
   createdAt: string;
   updatedAt: string;

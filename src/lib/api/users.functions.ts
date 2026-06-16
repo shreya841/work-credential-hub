@@ -186,6 +186,7 @@ export const listUsers = createServerFn({ method: "GET" })
       role: row.role as User["role"],
       companyId: row.companyId,
       avatarUrl: row.avatarUrl,
+      status: row.status,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }));
@@ -196,5 +197,76 @@ export const listUsers = createServerFn({ method: "GET" })
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+    };
+  });
+
+// ── updateUserAdmin ──────────────────────────────────────────────────
+
+export const updateUserAdmin = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      userId: z.string().uuid("Invalid user ID"),
+      role: z.enum(["super_admin", "company_admin", "hr", "employee"]).optional(),
+      status: z.enum(["active", "suspended"]).optional(),
+      companyId: z.string().uuid().nullable().optional(),
+    })
+  )
+  .handler(async ({ data }) => {
+    const user = await requireRole(["super_admin"]);
+    const db = getDb();
+
+    const updates: Record<string, any> = {};
+    if (data.role !== undefined) updates.role = data.role;
+    if (data.status !== undefined) updates.status = data.status;
+    if (data.companyId !== undefined) updates.companyId = data.companyId;
+
+    if (Object.keys(updates).length === 0) {
+      throw new Error("No fields to update");
+    }
+
+    updates.updatedAt = new Date();
+
+    const [updated] = await db
+      .update(schema.users)
+      .set(updates)
+      .where(eq(schema.users.id, data.userId))
+      .returning();
+
+    if (!updated) {
+      throw new Error("User not found");
+    }
+
+    // Trigger notification if user status changed
+    if (data.status) {
+      try {
+        await db.insert(schema.notifications).values({
+          userId: updated.id,
+          title: data.status === "suspended" ? "Account Suspended" : "Account Reactivated",
+          message: `Your account has been ${data.status} by a system administrator.`,
+        });
+      } catch (err) {
+        // Ignore notification if it fails
+      }
+    }
+
+    // Audit
+    await db.insert(schema.auditLogs).values({
+      userId: user.id,
+      action: `Super Admin updated user ${updated.email}: role=${updated.role}, status=${updated.status}`,
+      targetType: "user",
+      targetId: updated.id,
+      type: "update",
+    });
+
+    return {
+      id: updated.id,
+      email: updated.email,
+      fullName: updated.fullName,
+      role: updated.role as User["role"],
+      companyId: updated.companyId,
+      avatarUrl: updated.avatarUrl,
+      status: updated.status,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
     };
   });

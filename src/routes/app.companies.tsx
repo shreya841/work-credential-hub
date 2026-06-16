@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listCompanies, createCompany } from "@/lib/api/companies.functions";
+import { listCompanies, createCompany, updateCompany } from "@/lib/api/companies.functions";
 import { useAuth } from "@/components/auth-provider";
 import { CardGridSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
@@ -21,6 +21,18 @@ function Companies() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "pending" | "verified" | "suspended" }) =>
+      updateCompany({ data: { id, status } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      toast.success("Company status updated successfully");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to update company status");
+    },
+  });
 
   // Form states
   const [name, setName] = useState("");
@@ -169,13 +181,50 @@ function Companies() {
                 </div>
                 <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
                   <Badge
-                    variant={c.verified ? "default" : "outline"}
+                    variant={c.status === "verified" ? "default" : c.status === "suspended" ? "destructive" : "outline"}
                     className={
-                      c.verified ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10" : ""
+                      c.status === "verified" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10" : ""
                     }
                   >
-                    {c.verified ? "Verified" : "Pending"}
+                    <span className="capitalize">{c.status || "Pending"}</span>
                   </Badge>
+
+                  {isSuperAdmin && (
+                    <div className="flex gap-1.5">
+                      {c.status !== "verified" && (
+                        <Button
+                          size="xs"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-[10px] h-7 px-2"
+                          onClick={() => updateStatusMutation.mutate({ id: c.id, status: "verified" })}
+                          disabled={updateStatusMutation.isPending}
+                        >
+                          Verify
+                        </Button>
+                      )}
+                      {c.status !== "suspended" && (
+                        <Button
+                          size="xs"
+                          variant="destructive"
+                          className="font-medium text-[10px] h-7 px-2"
+                          onClick={() => updateStatusMutation.mutate({ id: c.id, status: "suspended" })}
+                          disabled={updateStatusMutation.isPending}
+                        >
+                          Suspend
+                        </Button>
+                      )}
+                      {c.status === "suspended" && (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="font-medium text-[10px] h-7 px-2"
+                          onClick={() => updateStatusMutation.mutate({ id: c.id, status: "pending" })}
+                          disabled={updateStatusMutation.isPending}
+                        >
+                          Reactivate
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

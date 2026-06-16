@@ -49,9 +49,6 @@ export const logAction = createServerFn({ method: "POST" })
     return entry;
   });
 
-// ── listAuditLogs ────────────────────────────────────────────────────
-// Paginated, filterable list of audit logs. Requires admin or HR role.
-
 export const listAuditLogs = createServerFn({ method: "GET" })
   .validator(
     z.object({
@@ -70,21 +67,48 @@ export const listAuditLogs = createServerFn({ method: "GET" })
         ])
         .optional(),
       search: z.string().optional(),
+      targetId: z.string().optional(),
+      userId: z.string().uuid().optional(),
     })
   )
   .handler(async ({ data }): Promise<PaginatedResult<AuditEntry>> => {
-    const user = await requireRole(["super_admin", "company_admin", "hr"]);
+    const user = await requireAuth();
     const db = getDb();
+
+    // Check permissions: only admins/HR can view general audit logs. Employees can only view logs matching their own ID.
+    if (user.role !== "super_admin" && user.role !== "company_admin" && user.role !== "hr") {
+      // If targetId is provided, check if it belongs to this employee
+      if (data.targetId) {
+        const [emp] = await db
+          .select({ userId: schema.employees.userId })
+          .from(schema.employees)
+          .where(eq(schema.employees.id, data.targetId))
+          .limit(1);
+        if (!emp || emp.userId !== user.id) {
+          throw new Error("Access denied. You can only view audit logs for your own profile.");
+        }
+      } else if (data.userId !== user.id) {
+        throw new Error("Access denied. You can only view audit logs for your own profile.");
+      }
+    }
 
     const page = data.page ?? 1;
     const pageSize = data.pageSize ?? 20;
     const offset = (page - 1) * pageSize;
 
     // Build conditions
-    const conditions: ReturnType<typeof eq>[] = [];
+    const conditions: any[] = [];
 
     if (data.type) {
       conditions.push(eq(schema.auditLogs.type, data.type));
+    }
+
+    if (data.targetId) {
+      conditions.push(eq(schema.auditLogs.targetId, data.targetId));
+    }
+
+    if (data.userId) {
+      conditions.push(eq(schema.auditLogs.userId, data.userId));
     }
 
     if (data.search) {

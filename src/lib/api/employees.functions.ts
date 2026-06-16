@@ -127,18 +127,18 @@ export const createEmployee = createServerFn({ method: "POST" })
     z.object({
       fullName: z.string().min(1, "Full name is required"),
       email: z.string().email("Invalid email"),
-      phone: z.string().min(1, "Phone is required"),
+      phone: z.string().optional().default(""),
       designation: z.string().min(1, "Designation is required"),
       department: z.string().min(1, "Department is required"),
       skills: z.array(z.string()).optional().default([]),
       joiningDate: z.string().min(1, "Joining date is required"),
-      exitDate: z.string().nullable().optional(),
+      exitDate: z.preprocess((val) => (val === "" || val === undefined ? null : val), z.string().nullable().optional()),
       experience: z.number().int().min(0).optional().default(0),
       status: z.enum(["active", "on_leave", "exited"]).optional().default("active"),
-      photoUrl: z.string().nullable().optional(),
-      resumeUrl: z.string().nullable().optional(),
+      photoUrl: z.preprocess((val) => (val === "" || val === undefined ? null : val), z.string().nullable().optional()),
+      resumeUrl: z.preprocess((val) => (val === "" || val === undefined ? null : val), z.string().nullable().optional()),
       companyId: z.string().uuid().optional(),
-      userId: z.string().uuid().nullable().optional(),
+      userId: z.preprocess((val) => (val === "" || val === undefined ? null : val), z.string().uuid().nullable().optional()),
       employeeId: z.string().optional(),
     })
   )
@@ -155,13 +155,12 @@ export const createEmployee = createServerFn({ method: "POST" })
       throw new Error("Company context is required to create an employee");
     }
 
-    // Generate employee ID if not provided
+    // Generate employee ID globally if not provided
     let employeeId = data.employeeId;
     if (!employeeId) {
       const [latestEmp] = await db
         .select({ employeeId: schema.employees.employeeId })
         .from(schema.employees)
-        .where(eq(schema.employees.companyId, companyId))
         .orderBy(desc(schema.employees.createdAt))
         .limit(1);
 
@@ -187,40 +186,67 @@ export const createEmployee = createServerFn({ method: "POST" })
       .limit(1);
 
     if (existingEmail) {
-      throw new Error("An employee with this email already exists in this company");
+      throw new Error("Employee email already exists");
     }
 
-    const [employee] = await db
-      .insert(schema.employees)
-      .values({
-        employeeId,
-        companyId,
-        fullName: data.fullName,
-        email: data.email.toLowerCase().trim(),
-        phone: data.phone,
-        designation: data.designation,
-        department: data.department,
-        skills: data.skills ?? [],
-        joiningDate: new Date(data.joiningDate),
-        exitDate: data.exitDate ? new Date(data.exitDate) : null,
-        experience: data.experience ?? 0,
-        status: data.status ?? "active",
-        photoUrl: data.photoUrl ?? null,
-        resumeUrl: data.resumeUrl ?? null,
-        userId: data.userId ?? null,
-      })
-      .returning();
+    // Try to auto-map userId if not provided
+    let userId = data.userId;
+    if (!userId) {
+      const [mappedUser] = await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, data.email.toLowerCase().trim()))
+        .limit(1);
+      if (mappedUser) {
+        userId = mappedUser.id;
+      }
+    }
 
-    // Audit
-    await db.insert(schema.auditLogs).values({
-      userId: user.id,
-      action: `Created employee: ${data.fullName} (${employeeId})`,
-      targetType: "employee",
-      targetId: employee.id,
-      type: "create",
-    });
+    try {
+      const [employee] = await db
+        .insert(schema.employees)
+        .values({
+          employeeId,
+          companyId,
+          fullName: data.fullName,
+          email: data.email.toLowerCase().trim(),
+          phone: data.phone ?? "",
+          designation: data.designation,
+          department: data.department,
+          skills: data.skills ?? [],
+          joiningDate: new Date(data.joiningDate),
+          exitDate: data.exitDate ? new Date(data.exitDate) : null,
+          experience: data.experience ?? 0,
+          status: data.status ?? "active",
+          photoUrl: data.photoUrl ?? null,
+          resumeUrl: data.resumeUrl ?? null,
+          userId: userId || null,
+        })
+        .returning();
 
-    return employee;
+      // Audit
+      await db.insert(schema.auditLogs).values({
+        userId: user.id,
+        action: `Created employee: ${data.fullName} (${employeeId})`,
+        targetType: "employee",
+        targetId: employee.id,
+        type: "create",
+      });
+
+      return employee;
+    } catch (err: any) {
+      const msg = err.message || "";
+      if (msg.includes("employees_employee_id_unique")) {
+        throw new Error("Employee ID already exists");
+      }
+      if (msg.includes("employees_company_id_fkey") || msg.includes("company_id")) {
+        throw new Error("Company not found");
+      }
+      if (msg.includes("employees_user_id_fkey") || msg.includes("user_id")) {
+        throw new Error("Invalid user mapping");
+      }
+      throw new Error(msg || "Failed to create employee");
+    }
   });
 
 // ── updateEmployee ───────────────────────────────────────────────────
@@ -291,6 +317,15 @@ export const updateEmployee = createServerFn({ method: "POST" })
       .where(eq(schema.employees.id, id))
       .returning();
 
+    // Trigger notification if verification state changed to true
+    if (updates.verified === true && !existing.verified && updated.userId) {
+      await db.insert(schema.notifications).values({
+        userId: updated.userId,
+        title: "Profile Verified by Company",
+        message: `Your employee profile has been verified by your company.`,
+      });
+    }
+
     // Audit
     await db.insert(schema.auditLogs).values({
       userId: user.id,
@@ -335,13 +370,65 @@ export const getEmployeeById = createServerFn({ method: "GET" })
 
     const { employee: emp, company } = rows[0];
 
-    // Company-scoped access
-    if (
-      user.role !== "super_admin" &&
-      user.companyId !== emp.companyId &&
-      user.id !== emp.userId
-    ) {
-      throw new Error("You do not have access to this employee");
+    // Company-scoped access and consent gates
+    let isCompanyVerified = false;
+    if (user.companyId) {
+      const [comp] = await db
+        .select({ status: schema.companies.status })
+        .from(schema.companies)
+        .where(eq(schema.companies.id, user.companyId))
+        .limit(1);
+      isCompanyVerified = comp?.status === "verified";
+    }
+
+    const isOwner = user.id === emp.userId;
+    const isSameCompany = user.companyId === emp.companyId;
+    const isSuperAdmin = user.role === "super_admin";
+    
+    let isConsentVisible = false;
+    if (user.companyId && isCompanyVerified) {
+      // Check if employee has a public visible profile, or has granted access to this company
+      const [settings] = await db
+        .select()
+        .from(schema.consentSettings)
+        .where(eq(schema.consentSettings.employeeId, emp.id))
+        .limit(1);
+      
+      const [grant] = await db
+        .select()
+        .from(schema.consentGrants)
+        .where(
+          and(
+            eq(schema.consentGrants.employeeId, emp.id),
+            eq(schema.consentGrants.companyId, user.companyId),
+            eq(schema.consentGrants.granted, true)
+          )
+        )
+        .limit(1);
+
+      if (settings?.publicVisible || grant) {
+        isConsentVisible = true;
+      }
+
+      // Check if they have an approved verification request
+      const [approvedRequest] = await db
+        .select()
+        .from(schema.verificationRequests)
+        .where(
+          and(
+            eq(schema.verificationRequests.employeeId, emp.id),
+            eq(schema.verificationRequests.requestedById, user.id),
+            eq(schema.verificationRequests.status, "approved")
+          )
+        )
+        .limit(1);
+      if (approvedRequest) {
+        isConsentVisible = true;
+      }
+    }
+
+    if (!isSuperAdmin && !isOwner && !isSameCompany && !isConsentVisible) {
+      throw new Error("You do not have access to this employee profile");
     }
 
     return {
@@ -500,4 +587,77 @@ export const getEmployeeByUserId = createServerFn({ method: "GET" })
           }
         : null,
     };
+  });
+
+// ── getEmploymentHistory ─────────────────────────────────────────────
+
+export const getEmploymentHistory = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      email: z.string().email(),
+    })
+  )
+  .handler(async ({ data }) => {
+    const user = await requireAuth();
+    const db = getDb();
+
+    let allowed = user.role === "super_admin" || user.email.toLowerCase() === data.email.toLowerCase();
+
+    if (!allowed && user.companyId) {
+      // Find any employee records with this email in the company
+      const companyEmps = await db
+        .select({ id: schema.employees.id })
+        .from(schema.employees)
+        .where(
+          and(
+            eq(schema.employees.email, data.email.toLowerCase().trim()),
+            eq(schema.employees.companyId, user.companyId)
+          )
+        );
+
+      if (companyEmps.length > 0) {
+        allowed = true;
+      } else {
+        // Check if there is an approved verification request
+        const requests = await db
+          .select()
+          .from(schema.verificationRequests)
+          .innerJoin(schema.employees, eq(schema.verificationRequests.employeeId, schema.employees.id))
+          .where(
+            and(
+              eq(schema.employees.email, data.email.toLowerCase().trim()),
+              eq(schema.verificationRequests.requestedById, user.id),
+              eq(schema.verificationRequests.status, "approved")
+            )
+          );
+        if (requests.length > 0) {
+          allowed = true;
+        }
+      }
+    }
+
+    if (!allowed) {
+      throw new Error("You do not have access to view this employment history");
+    }
+
+    const rows = await db
+      .select({
+        employee: schema.employees,
+        company: schema.companies,
+      })
+      .from(schema.employees)
+      .leftJoin(schema.companies, eq(schema.employees.companyId, schema.companies.id))
+      .where(eq(schema.employees.email, data.email.toLowerCase().trim()))
+      .orderBy(desc(schema.employees.joiningDate));
+
+    return rows.map((row) => ({
+      id: row.employee.id,
+      designation: row.employee.designation,
+      department: row.employee.department,
+      companyName: row.company?.name ?? "Unknown Company",
+      joiningDate: row.employee.joiningDate.toISOString(),
+      exitDate: row.employee.exitDate ? row.employee.exitDate.toISOString() : null,
+      status: row.employee.status,
+      verified: row.employee.verified,
+    }));
   });

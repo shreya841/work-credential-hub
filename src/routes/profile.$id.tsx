@@ -54,38 +54,47 @@ const fetchPublicProfile = createServerFn({ method: "GET" })
       }
     }
 
-    if (!authorized) {
-      const [consent] = await db
-        .select()
-        .from(schema.consentSettings)
-        .where(
-          and(
-            eq(schema.consentSettings.employeeId, emp.id),
-            eq(schema.consentSettings.publicVisible, true)
-          )
-        )
-        .limit(1);
-
-      if (consent) {
-        authorized = true;
-      }
-    }
-
+    // External profile access gate: only verified companies can access external profiles
     if (!authorized && session && session.companyId) {
-      const [grant] = await db
-        .select()
-        .from(schema.consentGrants)
-        .where(
-          and(
-            eq(schema.consentGrants.employeeId, emp.id),
-            eq(schema.consentGrants.companyId, session.companyId),
-            eq(schema.consentGrants.granted, true)
-          )
-        )
+      const [comp] = await db
+        .select({ status: schema.companies.status })
+        .from(schema.companies)
+        .where(eq(schema.companies.id, session.companyId))
         .limit(1);
 
-      if (grant) {
-        authorized = true;
+      if (comp && comp.status === "verified") {
+        const [consent] = await db
+          .select()
+          .from(schema.consentSettings)
+          .where(
+            and(
+              eq(schema.consentSettings.employeeId, emp.id),
+              eq(schema.consentSettings.publicVisible, true)
+            )
+          )
+          .limit(1);
+
+        if (consent) {
+          authorized = true;
+        }
+
+        if (!authorized) {
+          const [grant] = await db
+            .select()
+            .from(schema.consentGrants)
+            .where(
+              and(
+                eq(schema.consentGrants.employeeId, emp.id),
+                eq(schema.consentGrants.companyId, session.companyId),
+                eq(schema.consentGrants.granted, true)
+              )
+            )
+            .limit(1);
+
+          if (grant) {
+            authorized = true;
+          }
+        }
       }
     }
 

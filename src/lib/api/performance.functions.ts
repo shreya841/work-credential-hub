@@ -43,7 +43,7 @@ export const listReviews = createServerFn({ method: "GET" })
         id: schema.performanceReviews.id,
         employeeId: schema.performanceReviews.employeeId,
         reviewerId: schema.performanceReviews.reviewerId,
-        reviewerName: sql<string>`COALESCE(${schema.users.fullName}, 'Unknown')`,
+        reviewerName: sql<string>`COALESCE(${schema.performanceReviews.reviewerName}, ${schema.users.fullName}, 'Unknown')`,
         period: schema.performanceReviews.period,
         productivity: schema.performanceReviews.productivity,
         teamwork: schema.performanceReviews.teamwork,
@@ -95,8 +95,9 @@ export const createReview = createServerFn({ method: "POST" })
       teamwork: ratingSchema,
       communication: ratingSchema,
       leadership: ratingSchema,
-      attendance: ratingSchema,
+      attendance: z.number().min(0, "Attendance must be at least 0").max(100, "Attendance must be at most 100"),
       feedback: z.string().min(1, "Feedback is required"),
+      reviewerName: z.string().min(1, "Reviewer name is required").optional(),
     })
   )
   .handler(async ({ data }) => {
@@ -118,13 +119,13 @@ export const createReview = createServerFn({ method: "POST" })
       throw new Error("You can only review employees in your company");
     }
 
-    // Calculate overall rating (average of all metrics)
+    // Calculate overall rating (attendance is scaled: (attendance/100)*5)
     const overall =
       (data.productivity +
         data.teamwork +
         data.communication +
         data.leadership +
-        data.attendance) /
+        (data.attendance / 100) * 5) /
       5;
 
     const [review] = await db
@@ -132,6 +133,7 @@ export const createReview = createServerFn({ method: "POST" })
       .values({
         employeeId: data.employeeId,
         reviewerId: user.id,
+        reviewerName: data.reviewerName || user.fullName,
         period: data.period,
         productivity: data.productivity,
         teamwork: data.teamwork,
@@ -167,6 +169,15 @@ export const createReview = createServerFn({ method: "POST" })
       type: "create",
       metadata: { overall, period: data.period },
     });
+
+    // Notify employee
+    if (employee.userId) {
+      await db.insert(schema.notifications).values({
+        userId: employee.userId,
+        title: "New Performance Review Added",
+        message: `A new performance review has been added for period: ${data.period}. Overall rating: ${Math.round(overall * 100) / 100}/5.`,
+      });
+    }
 
     return review;
   });
@@ -254,14 +265,37 @@ export const getPerformanceBreakdown = createServerFn({ method: "GET" })
         employeeId: data.employeeId,
         employeeName: employee.fullName,
         hasReviews: false,
+        employeeAvgRating: Number(employee.rating),
+        departmentAvgRating: 0,
         metrics: null,
       };
+    }
+
+    // Calculate department average
+    let departmentAvgRating = 0;
+    if (employee.department) {
+      const [deptAvgResult] = await db
+        .select({ avgRating: avg(schema.performanceReviews.overall) })
+        .from(schema.performanceReviews)
+        .innerJoin(
+          schema.employees,
+          eq(schema.performanceReviews.employeeId, schema.employees.id)
+        )
+        .where(
+          and(
+            eq(schema.employees.department, employee.department),
+            eq(schema.employees.companyId, employee.companyId)
+          )
+        );
+      departmentAvgRating = deptAvgResult?.avgRating ? Math.round(Number(deptAvgResult.avgRating) * 100) / 100 : 0;
     }
 
     return {
       employeeId: data.employeeId,
       employeeName: employee.fullName,
       hasReviews: true,
+      employeeAvgRating: Number(employee.rating),
+      departmentAvgRating,
       metrics: {
         productivity: Number(latestReview.productivity),
         teamwork: Number(latestReview.teamwork),

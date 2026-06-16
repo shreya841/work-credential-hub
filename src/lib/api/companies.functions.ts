@@ -57,6 +57,7 @@ export const listCompanies = createServerFn({ method: "GET" })
         website: schema.companies.website,
         logoUrl: schema.companies.logoUrl,
         verified: schema.companies.verified,
+        status: schema.companies.status,
         createdAt: schema.companies.createdAt,
         updatedAt: schema.companies.updatedAt,
         employeeCount:
@@ -79,6 +80,7 @@ export const listCompanies = createServerFn({ method: "GET" })
       website: row.website,
       logoUrl: row.logoUrl,
       verified: row.verified,
+      status: row.status,
       employeeCount: row.employeeCount ?? 0,
       createdAt:
         row.createdAt instanceof Date
@@ -150,6 +152,7 @@ export const updateCompany = createServerFn({ method: "POST" })
       location: z.string().optional(),
       website: z.string().url().or(z.literal("")).optional(),
       verified: z.boolean().optional(),
+      status: z.enum(["pending", "verified", "suspended"]).optional(),
     })
   )
   .handler(async ({ data }) => {
@@ -161,6 +164,13 @@ export const updateCompany = createServerFn({ method: "POST" })
       throw new Error("You can only update your own company");
     }
 
+    // Role restrictions for verification and status
+    if (user.role !== "super_admin") {
+      if (data.verified !== undefined || data.status !== undefined) {
+        throw new Error("Only super admins can modify verification or lifecycle status");
+      }
+    }
+
     const { id, ...updateFields } = data;
 
     // Filter out undefined values
@@ -168,6 +178,21 @@ export const updateCompany = createServerFn({ method: "POST" })
     for (const [key, value] of Object.entries(updateFields)) {
       if (value !== undefined) {
         updates[key] = value;
+      }
+    }
+
+    // Align verified flag and status enum
+    if (updates.status !== undefined) {
+      if (updates.status === "verified") {
+        updates.verified = true;
+      } else {
+        updates.verified = false;
+      }
+    } else if (updates.verified !== undefined) {
+      if (updates.verified === true) {
+        updates.status = "verified";
+      } else {
+        updates.status = "pending";
       }
     }
 
@@ -185,6 +210,28 @@ export const updateCompany = createServerFn({ method: "POST" })
 
     if (!updated) {
       throw new Error("Company not found");
+    }
+
+    // If company is approved, trigger notifications to company admins
+    if (updates.status === "verified") {
+      // Find company admin users
+      const admins = await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(
+          and(
+            eq(schema.users.companyId, id),
+            eq(schema.users.role, "company_admin")
+          )
+        );
+      
+      for (const admin of admins) {
+        await db.insert(schema.notifications).values({
+          userId: admin.id,
+          title: "Company Approved",
+          message: `Your company "${updated.name}" has been approved and verified by Super Admins.`,
+        });
+      }
     }
 
     // Audit
