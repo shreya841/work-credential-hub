@@ -15,7 +15,12 @@ export function getDb() {
         "DATABASE_URL environment variable is not set. Please configure your database connection."
       );
     }
-    const client = postgres(connectionString);
+    const client = postgres(connectionString, {
+      ssl: "require",
+      max: 10,
+      idle_timeout: 20,
+      connect_timeout: 10,
+    });
     db = drizzle(client, { schema });
   }
   return db;
