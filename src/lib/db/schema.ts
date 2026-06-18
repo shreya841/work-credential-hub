@@ -9,6 +9,8 @@ import {
   timestamp,
   jsonb,
   pgEnum,
+  unique,
+  index,
 } from "drizzle-orm/pg-core";
 
 // ── Enums ───────────────────────────────────────────────────────────
@@ -18,6 +20,15 @@ export const roleEnum = pgEnum("role", [
   "company_admin",
   "hr",
   "employee",
+]);
+
+export const companyStatusEnum = pgEnum("company_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "suspended",
+  "archived",
+  "deleted",
 ]);
 
 export const employmentStatusEnum = pgEnum("employment_status", [
@@ -55,7 +66,11 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_users_company_id").on(table.companyId),
+  index("idx_users_email").on(table.email),
+  index("idx_users_created_at").on(table.createdAt),
+]);
 
 // ── Companies ───────────────────────────────────────────────────────
 
@@ -68,38 +83,55 @@ export const companies = pgTable("companies", {
   website: varchar("website", { length: 255 }).default(""),
   logoUrl: text("logo_url"),
   verified: boolean("verified").default(false).notNull(),
+  status: companyStatusEnum("status").default("pending").notNull(),
   employeeCount: integer("employee_count").default(0).notNull(),
   createdById: uuid("created_by_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_companies_status").on(table.status),
+  index("idx_companies_created_at").on(table.createdAt),
+]);
 
 // ── Employees ───────────────────────────────────────────────────────
 
-export const employees = pgTable("employees", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  employeeId: varchar("employee_id", { length: 50 }).notNull().unique(),
-  userId: uuid("user_id").references(() => users.id),
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => companies.id),
-  fullName: varchar("full_name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull(),
-  phone: varchar("phone", { length: 50 }).default(""),
-  designation: varchar("designation", { length: 100 }).default(""),
-  department: varchar("department", { length: 100 }).default(""),
-  skills: jsonb("skills").default([]).notNull(),
-  joiningDate: timestamp("joining_date").notNull(),
-  exitDate: timestamp("exit_date"),
-  experience: integer("experience").default(0).notNull(),
-  status: employmentStatusEnum("status").notNull().default("active"),
-  photoUrl: text("photo_url"),
-  resumeUrl: text("resume_url"),
-  verified: boolean("verified").default(false).notNull(),
-  rating: real("rating").default(0).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const employees = pgTable(
+  "employees",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    employeeId: varchar("employee_id", { length: 50 }).notNull(),
+    userId: uuid("user_id").references(() => users.id),
+    companyId: uuid("company_id").references(() => companies.id),
+    fullName: varchar("full_name", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    phone: varchar("phone", { length: 50 }).default(""),
+    designation: varchar("designation", { length: 100 }).default(""),
+    department: varchar("department", { length: 100 }).default(""),
+    skills: jsonb("skills").default([]).notNull(),
+    joiningDate: timestamp("joining_date").notNull(),
+    exitDate: timestamp("exit_date"),
+    experience: integer("experience").default(0).notNull(),
+    status: employmentStatusEnum("status").notNull().default("active"),
+    photoUrl: text("photo_url"),
+    resumeUrl: text("resume_url"),
+    certifications: jsonb("certifications").default([]).notNull(),
+    portfolioLinks: jsonb("portfolio_links").default([]).notNull(),
+    verified: boolean("verified").default(false).notNull(),
+    claimStatus: varchar("claim_status", { length: 50 }).default("unclaimed").notNull(),
+    rating: real("rating").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("employees_company_id_employee_id_unique").on(table.companyId, table.employeeId),
+    index("idx_employees_company_id").on(table.companyId),
+    index("idx_employees_user_id").on(table.userId),
+    index("idx_employees_employee_id").on(table.employeeId),
+    index("idx_employees_email").on(table.email),
+    index("idx_employees_status").on(table.status),
+    index("idx_employees_created_at").on(table.createdAt),
+  ]
+);
 
 // ── Performance Reviews ─────────────────────────────────────────────
 
@@ -120,7 +152,11 @@ export const performanceReviews = pgTable("performance_reviews", {
   overall: real("overall").notNull(),
   feedback: text("feedback").default(""),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_performance_reviews_employee_id").on(table.employeeId),
+  index("idx_performance_reviews_reviewer_id").on(table.reviewerId),
+  index("idx_performance_reviews_created_at").on(table.createdAt),
+]);
 
 // ── Consent Settings ────────────────────────────────────────────────
 
@@ -148,7 +184,10 @@ export const consentGrants = pgTable("consent_grants", {
   granted: boolean("granted").default(false).notNull(),
   grantedAt: timestamp("granted_at"),
   revokedAt: timestamp("revoked_at"),
-});
+}, (table) => [
+  index("idx_consent_grants_employee_id").on(table.employeeId),
+  index("idx_consent_grants_company_id").on(table.companyId),
+]);
 
 // ── Verification Requests ───────────────────────────────────────────
 
@@ -165,7 +204,12 @@ export const verificationRequests = pgTable("verification_requests", {
   responseData: jsonb("response_data"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
-});
+}, (table) => [
+  index("idx_verification_requests_employee_id").on(table.employeeId),
+  index("idx_verification_requests_requested_by_id").on(table.requestedById),
+  index("idx_verification_requests_status").on(table.status),
+  index("idx_verification_requests_created_at").on(table.createdAt),
+]);
 
 // ── Audit Logs ──────────────────────────────────────────────────────
 
@@ -179,7 +223,11 @@ export const auditLogs = pgTable("audit_logs", {
   ipAddress: varchar("ip_address", { length: 45 }),
   type: auditActionEnum("type").notNull().default("access"),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_audit_logs_user_id").on(table.userId),
+  index("idx_audit_logs_type").on(table.type),
+  index("idx_audit_logs_timestamp").on(table.timestamp),
+]);
 
 // ── Refresh Tokens ──────────────────────────────────────────────────
 
@@ -192,4 +240,49 @@ export const refreshTokens = pgTable("refresh_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   revoked: boolean("revoked").default(false).notNull(),
-});
+}, (table) => [
+  index("idx_refresh_tokens_user_id").on(table.userId),
+]);
+
+// ── Invitations ─────────────────────────────────────────────────────
+
+export const invitations = pgTable("invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  companyId: uuid("company_id")
+    .notNull()
+    .references(() => companies.id),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id),
+  status: varchar("status", { length: 50 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_invitations_company_id").on(table.companyId),
+  index("idx_invitations_employee_id").on(table.employeeId),
+  index("idx_invitations_created_at").on(table.createdAt),
+]);
+
+// ── Employment History ──────────────────────────────────────────────
+
+export const employmentHistory = pgTable("employment_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id),
+  companyId: uuid("company_id").references(() => companies.id),
+  companyName: varchar("company_name", { length: 255 }).notNull(),
+  designation: varchar("designation", { length: 100 }).notNull(),
+  department: varchar("department", { length: 100 }),
+  joiningDate: timestamp("joining_date").notNull(),
+  exitDate: timestamp("exit_date"),
+  experience: integer("experience").default(0).notNull(),
+  salary: integer("salary"),
+  verificationStatus: varchar("verification_status", { length: 50 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_employment_history_employee_id").on(table.employeeId),
+  index("idx_employment_history_company_id").on(table.companyId),
+  index("idx_employment_history_created_at").on(table.createdAt),
+]);

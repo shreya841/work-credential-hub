@@ -12,10 +12,13 @@ import { useQuery } from "@tanstack/react-query";
 import { searchEmployees } from "@/lib/api/search.functions";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { useAuth } from "@/components/auth-provider";
 
 export const Route = createFileRoute("/app/search")({ component: HrSearch });
 
 function HrSearch() {
+  const { user } = useAuth();
+  const isApproved = user.role === "super_admin" || user.companyStatus === "approved";
   const [q, setQ] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
@@ -47,6 +50,7 @@ function HrSearch() {
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search by name, email, employee ID, or skills…"
               className="h-14 pl-12 text-base"
+              disabled={!isApproved}
             />
           </div>
           <p className="mt-2 text-xs text-muted-foreground">

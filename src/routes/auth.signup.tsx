@@ -13,11 +13,20 @@ const signupAction = createServerFn({ method: "POST" })
     z.object({
       firstName: z.string().min(1, "First name is required"),
       lastName: z.string().min(1, "Last name is required"),
-      companyName: z.string().min(1, "Company name is required"),
-      companyIndustry: z.string().min(1, "Industry is required"),
+      companyName: z.string().optional(),
+      companyIndustry: z.string().optional(),
+      companyLocation: z.string().optional(),
+      companySize: z.string().optional(),
+      companyWebsite: z.string().optional(),
       email: z.string().email("Please enter a valid email"),
       password: z.string().min(8, "Password must be at least 8 characters"),
-      role: z.enum(["company_admin", "employee"]),
+      role: z.enum(["company_admin", "employee", "independent_professional"]),
+      phone: z.string().optional(),
+      skills: z.array(z.string()).optional(),
+      certifications: z.array(z.string()).optional(),
+      experience: z.number().optional(),
+      portfolioLinks: z.array(z.string()).optional(),
+      resumeUrl: z.string().optional(),
     })
   )
   .handler(async ({ data }) => {
@@ -44,17 +53,56 @@ const signupAction = createServerFn({ method: "POST" })
       const fullName = `${data.firstName} ${data.lastName}`;
 
       let companyId: string | null = null;
+      let employeeIdToLink: string | null = null;
+      const isIndependent = data.role === "independent_professional";
+      const dbRole = isIndependent ? "employee" : data.role;
 
       if (data.role === "company_admin") {
+        if (!data.companyName) throw new Error("Company name is required for Company Admin");
         // Create company first
         const [company] = await db
           .insert(companies)
           .values({
             name: data.companyName,
-            industry: data.companyIndustry,
+            industry: data.companyIndustry || "General",
+            size: data.companySize || "1-10",
+            location: data.companyLocation || "",
+            website: data.companyWebsite || "",
           })
           .returning();
         companyId = company.id;
+      } else if (data.role === "employee") {
+        const { employees, invitations } = await import("@/lib/db/schema");
+        const { and } = await import("drizzle-orm");
+        
+        // Check invitations first
+        const [inv] = await db
+          .select()
+          .from(invitations)
+          .where(and(eq(invitations.email, data.email.toLowerCase().trim()), eq(invitations.status, "pending")))
+          .limit(1);
+
+        if (inv) {
+          companyId = inv.companyId;
+          employeeIdToLink = inv.employeeId;
+          
+          await db
+            .update(invitations)
+            .set({ status: "accepted" })
+            .where(eq(invitations.id, inv.id));
+        } else {
+          // Check existing employee record by email
+          const [existingEmp] = await db
+            .select()
+            .from(employees)
+            .where(eq(employees.email, data.email.toLowerCase().trim()))
+            .limit(1);
+
+          if (existingEmp) {
+            companyId = existingEmp.companyId;
+            employeeIdToLink = existingEmp.id;
+          }
+        }
       }
 
       // Create user
@@ -64,17 +112,50 @@ const signupAction = createServerFn({ method: "POST" })
           email: data.email,
           passwordHash,
           fullName,
-          role: data.role,
+          role: dbRole as any,
           companyId,
         })
         .returning();
 
       // Update company createdById
-      if (companyId) {
+      if (data.role === "company_admin" && companyId) {
         await db
           .update(companies)
           .set({ createdById: user.id })
           .where(eq(companies.id, companyId));
+      }
+
+      // If we found an employee record to link, update it
+      const { employees } = await import("@/lib/db/schema");
+      if (employeeIdToLink) {
+        await db
+          .update(employees)
+          .set({ userId: user.id, claimStatus: "claimed" })
+          .where(eq(employees.id, employeeIdToLink));
+      } else if (isIndependent || data.role === "employee") {
+        // Create an employee profile (if not linked)
+        const employeeId = `${isIndependent ? 'IND' : 'EMP'}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        
+        await db
+          .insert(employees)
+          .values({
+            employeeId,
+            userId: user.id,
+            companyId: companyId || null,
+            fullName,
+            email: data.email.toLowerCase().trim(),
+            phone: data.phone || "",
+            designation: isIndependent ? "Independent Professional" : "Employee Profile",
+            department: isIndependent ? "Self" : "General",
+            skills: data.skills || [],
+            certifications: data.certifications || [],
+            portfolioLinks: data.portfolioLinks || [],
+            resumeUrl: data.resumeUrl || "",
+            joiningDate: new Date(),
+            experience: data.experience || 0,
+            status: "active",
+            claimStatus: "claimed",
+          });
       }
 
       const accessToken = signAccessToken({
@@ -122,7 +203,7 @@ function Signup() {
   const nav = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [role, setRole] = useState<"company_admin" | "employee">("company_admin");
+  const [role, setRole] = useState<"company_admin" | "employee" | "independent_professional">("company_admin");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -134,19 +215,43 @@ function Signup() {
     const lastName = formData.get("lastName") as string;
     const companyName = formData.get("companyName") as string;
     const companyIndustry = formData.get("companyIndustry") as string;
+    const companyLocation = formData.get("companyLocation") as string;
+    const companySize = formData.get("companySize") as string;
+    const companyWebsite = formData.get("companyWebsite") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    
+    const phone = formData.get("phone") as string;
+    const skills = formData.get("skills") as string;
+    const experience = formData.get("experience") as string;
+    const portfolioLinks = formData.get("portfolioLinks") as string;
+    const resumeUrl = formData.get("resumeUrl") as string;
+
+    const skillsArray = skills
+      ? skills.split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+      : [];
+    const portfolioLinksArray = portfolioLinks
+      ? portfolioLinks.split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+      : [];
 
     try {
       await signupAction({
         data: {
           firstName,
           lastName,
-          companyName: companyName || "N/A",
-          companyIndustry: companyIndustry || "General",
+          companyName: role === "company_admin" ? companyName : undefined,
+          companyIndustry: role === "company_admin" ? companyIndustry : undefined,
+          companyLocation: role === "company_admin" ? companyLocation : undefined,
+          companySize: role === "company_admin" ? companySize : undefined,
+          companyWebsite: role === "company_admin" ? companyWebsite : undefined,
           email,
           password,
           role,
+          phone: role === "independent_professional" ? phone : undefined,
+          skills: role === "independent_professional" ? skillsArray : undefined,
+          experience: role === "independent_professional" ? Number(experience) : undefined,
+          portfolioLinks: role === "independent_professional" ? portfolioLinksArray : undefined,
+          resumeUrl: role === "independent_professional" ? resumeUrl : undefined,
         },
       });
       toast.success("Account created successfully");
@@ -174,13 +279,14 @@ function Signup() {
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
           <Label>I am a</Label>
-          <Select value={role} onValueChange={(v) => setRole(v as "company_admin" | "employee")}>
+          <Select value={role} onValueChange={(v) => setRole(v as any)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="company_admin">Company Admin</SelectItem>
-              <SelectItem value="employee">Employee</SelectItem>
+              <SelectItem value="employee">Company Employee</SelectItem>
+              <SelectItem value="independent_professional">Independent Professional</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -195,16 +301,69 @@ function Signup() {
           </div>
         </div>
         {role === "company_admin" && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="companyName">Company name</Label>
-              <Input id="companyName" name="companyName" required />
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Company name</Label>
+                <Input id="companyName" name="companyName" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="companyIndustry">Industry</Label>
+                <Input id="companyIndustry" name="companyIndustry" required />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="companyLocation">Location</Label>
+                <Input id="companyLocation" name="companyLocation" placeholder="e.g. Delhi, India" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="companySize">Size (employees)</Label>
+                <Select name="companySize" defaultValue="1-10">
+                  <SelectTrigger id="companySize">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1-10">1-10 employees</SelectItem>
+                    <SelectItem value="11-50">11-50 employees</SelectItem>
+                    <SelectItem value="51-200">51-200 employees</SelectItem>
+                    <SelectItem value="201-500">201-500 employees</SelectItem>
+                    <SelectItem value="500+">500+ employees</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyIndustry">Industry</Label>
-              <Input id="companyIndustry" name="companyIndustry" required />
+              <Label htmlFor="companyWebsite">Company Website</Label>
+              <Input id="companyWebsite" name="companyWebsite" type="url" placeholder="https://example.com" required />
             </div>
-          </div>
+          </>
+        )}
+        {role === "independent_professional" && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone number</Label>
+                <Input id="phone" name="phone" placeholder="e.g. +1234567890" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="experience">Years of Experience</Label>
+                <Input id="experience" name="experience" type="number" min="0" placeholder="e.g. 5" required />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="skills">Skills (comma separated)</Label>
+              <Input id="skills" name="skills" placeholder="e.g. React, SQL, TypeScript" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="portfolioLinks">Portfolio Links (comma separated)</Label>
+              <Input id="portfolioLinks" name="portfolioLinks" placeholder="e.g. https://portfolio.com, https://github.com" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="resumeUrl">Resume URL</Label>
+              <Input id="resumeUrl" name="resumeUrl" type="url" placeholder="https://drive.google.com/resume.pdf" />
+            </div>
+          </>
         )}
         <div className="space-y-2">
           <Label htmlFor="email">Work email</Label>

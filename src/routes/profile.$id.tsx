@@ -222,7 +222,7 @@ function PublicProfile() {
     );
   }
 
-  const e = data.employee;
+  const e = data.employee as any;
   const company = e.company;
 
   const joiningDateFormatted = e.joiningDate

@@ -2,8 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
-import { eq, and, desc, count } from "drizzle-orm";
-import { requireAuth, requireRole } from "@/lib/auth/session.server";
+import { eq, and, desc, count, sql, inArray, ilike, or } from "drizzle-orm";
+import { requireAuth, requireRole, requireVerifiedCompany } from "@/lib/auth/session.server";
 import type { VerificationRequest } from "@/lib/types";
 
 // ── createVerificationRequest ───────────────────────────────────────
@@ -17,6 +17,7 @@ export const createVerificationRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const user = await requireRole(["super_admin", "company_admin", "hr"]);
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     const [employee] = await db
@@ -47,7 +48,7 @@ export const createVerificationRequest = createServerFn({ method: "POST" })
       type: "verification_request",
     });
 
-    return request;
+    return request as any;
   });
 
 // ── listVerificationRequests ────────────────────────────────────────
@@ -61,6 +62,7 @@ export const listVerificationRequests = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const user = await requireAuth();
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     const page = data.page ?? 1;
@@ -69,19 +71,21 @@ export const listVerificationRequests = createServerFn({ method: "GET" })
 
     const conditions = [];
 
-    if (user.role === "employee") {
-      const [employee] = await db
+    if (user.role !== "super_admin") {
+      // Find employee record for current user
+      const [emp] = await db
         .select({ id: schema.employees.id })
         .from(schema.employees)
         .where(eq(schema.employees.userId, user.id))
         .limit(1);
+      const empId = emp ? emp.id : "";
 
-      if (!employee) {
-        return { data: [], total: 0, page, pageSize, totalPages: 0 };
-      }
-      conditions.push(eq(schema.verificationRequests.employeeId, employee.id));
-    } else if (user.role === "hr" || user.role === "company_admin") {
-      conditions.push(eq(schema.verificationRequests.requestedById, user.id));
+      conditions.push(
+        or(
+          eq(schema.verificationRequests.requestedById, user.id),
+          eq(schema.verificationRequests.employeeId, empId)
+        )!
+      );
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -125,7 +129,7 @@ export const listVerificationRequests = createServerFn({ method: "GET" })
       employeeName: row.employeeName ?? "Unknown",
       status: row.status as VerificationRequest["status"],
       requestType: row.requestType,
-      responseData: row.responseData as Record<string, unknown> | null,
+      responseData: row.responseData as any,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
     }));
@@ -224,7 +228,7 @@ export const resolveVerificationRequest = createServerFn({ method: "POST" })
       type: "consent_change",
     });
 
-    return updated;
+    return updated as any;
   });
 
 // ── getVerificationResult ───────────────────────────────────────────
@@ -237,6 +241,7 @@ export const getVerificationResult = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<VerificationRequest> => {
     const user = await requireAuth();
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     const rows = await db
@@ -289,8 +294,77 @@ export const getVerificationResult = createServerFn({ method: "GET" })
       employeeName: row.employeeName ?? "Unknown",
       status: row.status as VerificationRequest["status"],
       requestType: row.requestType,
-      responseData: row.responseData as Record<string, unknown> | null,
+      responseData: row.responseData as any,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
     };
+  });
+
+// ── searchEmployeesGlobal ────────────────────────────────────────────
+// Cross-company employee search for HR/Admin — consent-safe (no salary, no private notes)
+
+export const searchEmployeesGlobal = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      query: z.string().min(1, "Search query is required").max(100),
+    })
+  )
+  .handler(async ({ data }) => {
+    const user = await requireRole(["super_admin", "company_admin", "hr"]);
+    await requireVerifiedCompany(user);
+    const db = getDb();
+
+    const searchPattern = `%${data.query.trim()}%`;
+
+    const conditions = [
+      // Only show employees from verified/approved companies
+      or(
+        eq(schema.companies.status, "verified"),
+        eq(schema.companies.status, "approved")
+      ),
+      // Text search across name, email, employeeId
+      or(
+        ilike(schema.employees.fullName, searchPattern),
+        ilike(schema.employees.email, searchPattern),
+        ilike(schema.employees.employeeId, searchPattern),
+        ilike(schema.employees.designation, searchPattern)
+      )
+    ];
+
+    if (user.role !== "super_admin") {
+      conditions.push(eq(schema.employees.userId, user.id));
+    }
+
+    const rows = await db
+      .select({
+        id: schema.employees.id,
+        employeeId: schema.employees.employeeId,
+        fullName: schema.employees.fullName,
+        email: schema.employees.email,
+        designation: schema.employees.designation,
+        department: schema.employees.department,
+        photoUrl: schema.employees.photoUrl,
+        verified: schema.employees.verified,
+        companyId: schema.employees.companyId,
+        companyName: schema.companies.name,
+        companyStatus: schema.companies.status,
+      })
+      .from(schema.employees)
+      .leftJoin(schema.companies, eq(schema.employees.companyId, schema.companies.id))
+      .where(and(...conditions))
+      .limit(15)
+      .orderBy(schema.employees.fullName);
+
+    return rows.map((r) => ({
+      id: r.id,
+      employeeId: r.employeeId,
+      fullName: r.fullName,
+      email: r.email,
+      designation: r.designation ?? "",
+      department: r.department ?? "",
+      photoUrl: r.photoUrl,
+      verified: r.verified,
+      companyId: r.companyId,
+      companyName: r.companyName ?? "Independent Professional",
+    }));
   });

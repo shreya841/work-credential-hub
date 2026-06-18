@@ -46,9 +46,9 @@ function Audit() {
       }),
   });
 
-  const logs = data?.data ?? [];
-  const total = data?.total ?? 0;
-  const pages = data?.totalPages ?? 1;
+  const logs = (data as any)?.data ?? [];
+  const total = (data as any)?.total ?? 0;
+  const pages = (data as any)?.totalPages ?? 1;
 
   return (
     <div>
@@ -111,7 +111,7 @@ function Audit() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((a) => (
+                {logs.map((a: any) => (
                   <TableRow key={a.id}>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(a.timestamp).toLocaleString()}

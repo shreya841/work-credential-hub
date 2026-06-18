@@ -3,7 +3,7 @@ import { z } from "zod";
 import { setCookie, deleteCookie } from "@tanstack/react-start/server";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   signAccessToken,
   signRefreshToken,

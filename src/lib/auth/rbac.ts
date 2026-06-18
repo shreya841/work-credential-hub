@@ -19,6 +19,7 @@ export const SIDEBAR_ITEMS: Record<Role, string[]> = {
     "employees",
     "performance",
     "search",
+    "verification",
     "audit",
   ],
   hr: [
@@ -29,7 +30,7 @@ export const SIDEBAR_ITEMS: Record<Role, string[]> = {
     "verification",
     "audit",
   ],
-  employee: ["dashboard", "consent", "profile"],
+  employee: ["dashboard", "consent", "profile", "audit"],
 };
 
 // ── Route Access Control ────────────────────────────────────────────
@@ -41,8 +42,8 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   "/app/performance": ["company_admin", "hr"],
   "/app/search": ["company_admin", "hr"],
   "/app/consent": ["employee"],
-  "/app/audit": ["super_admin", "company_admin", "hr"],
-  "/app/verification": ["hr"],
+  "/app/audit": ["super_admin", "company_admin", "hr", "employee"],
+  "/app/verification": ["company_admin", "hr"],
   "/app/settings": ["super_admin"],
   "/app/profile": ["employee"],
 };
@@ -61,10 +62,10 @@ const ACTION_PERMISSIONS: Record<string, Role[]> = {
   create_employee: ["company_admin", "hr"],
   edit_employee: ["company_admin", "hr"],
   delete_employee: ["company_admin"],
-  create_review: ["company_admin", "hr"],
-  request_verification: ["hr"],
+  create_review: ["super_admin", "company_admin", "hr"],
+  request_verification: ["company_admin", "hr"],
   manage_consent: ["employee"],
-  view_audit_logs: ["super_admin", "company_admin", "hr"],
+  view_audit_logs: ["super_admin", "company_admin", "hr", "employee"],
   manage_users: ["super_admin", "company_admin"],
 };
 

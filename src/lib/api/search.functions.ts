@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
 import { eq, and, or, ilike, exists, sql } from "drizzle-orm";
-import { requireAuth } from "@/lib/auth/session.server";
+import { requireAuth, requireVerifiedCompany } from "@/lib/auth/session.server";
 import type { Employee } from "@/lib/types";
 
 // ── searchEmployees ──────────────────────────────────────────────────
@@ -16,6 +16,7 @@ export const searchEmployees = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<Employee[]> => {
     const user = await requireAuth();
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     const searchPattern = `%${data.query}%`;
@@ -29,44 +30,7 @@ export const searchEmployees = createServerFn({ method: "POST" })
     const conditions = [searchCondition];
 
     if (user.role !== "super_admin") {
-      const consentConditions = [];
-
-      if (user.companyId) {
-        consentConditions.push(eq(schema.employees.companyId, user.companyId));
-      }
-
-      consentConditions.push(
-        exists(
-          db
-            .select()
-            .from(schema.consentSettings)
-            .where(
-              and(
-                eq(schema.consentSettings.employeeId, schema.employees.id),
-                eq(schema.consentSettings.publicVisible, true)
-              )
-            )
-        )
-      );
-
-      if (user.companyId) {
-        consentConditions.push(
-          exists(
-            db
-              .select()
-              .from(schema.consentGrants)
-              .where(
-                and(
-                  eq(schema.consentGrants.employeeId, schema.employees.id),
-                  eq(schema.consentGrants.companyId, user.companyId),
-                  eq(schema.consentGrants.granted, true)
-                )
-              )
-          )
-        );
-      }
-
-      conditions.push(or(...consentConditions));
+      conditions.push(eq(schema.employees.userId, user.id));
     }
 
     const rows = await db
@@ -95,7 +59,7 @@ export const searchEmployees = createServerFn({ method: "POST" })
       phone: row.phone,
       designation: row.designation,
       department: row.department,
-      skills: row.skills ?? [],
+      skills: (row.skills as string[]) ?? [],
       joiningDate: row.joiningDate.toISOString(),
       exitDate: row.exitDate ? row.exitDate.toISOString() : null,
       experience: row.experience,

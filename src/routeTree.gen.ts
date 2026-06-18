@@ -27,6 +27,7 @@ import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppConsentRouteImport } from './routes/app.consent'
 import { Route as AppCompaniesRouteImport } from './routes/app.companies'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
+import { Route as AppEmployeesIndexRouteImport } from './routes/app.employees.index'
 import { Route as AppEmployeesIdRouteImport } from './routes/app.employees.$id'
 
 const AuthRoute = AuthRouteImport.update({
@@ -119,6 +120,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEmployeesIndexRoute = AppEmployeesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppEmployeesRoute,
+} as any)
 const AppEmployeesIdRoute = AppEmployeesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/auth/signup': typeof AuthSignupRoute
   '/profile/$id': typeof ProfileIdRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/': typeof AppEmployeesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -154,7 +161,6 @@ export interface FileRoutesByTo {
   '/app/companies': typeof AppCompaniesRoute
   '/app/consent': typeof AppConsentRoute
   '/app/dashboard': typeof AppDashboardRoute
-  '/app/employees': typeof AppEmployeesRouteWithChildren
   '/app/performance': typeof AppPerformanceRoute
   '/app/profile': typeof AppProfileRoute
   '/app/search': typeof AppSearchRoute
@@ -166,6 +172,7 @@ export interface FileRoutesByTo {
   '/auth/signup': typeof AuthSignupRoute
   '/profile/$id': typeof ProfileIdRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees': typeof AppEmployeesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -188,6 +195,7 @@ export interface FileRoutesById {
   '/auth/signup': typeof AuthSignupRoute
   '/profile/$id': typeof ProfileIdRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
+  '/app/employees/': typeof AppEmployeesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,6 +219,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/profile/$id'
     | '/app/employees/$id'
+    | '/app/employees/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -220,7 +229,6 @@ export interface FileRouteTypes {
     | '/app/companies'
     | '/app/consent'
     | '/app/dashboard'
-    | '/app/employees'
     | '/app/performance'
     | '/app/profile'
     | '/app/search'
@@ -232,6 +240,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/profile/$id'
     | '/app/employees/$id'
+    | '/app/employees'
   id:
     | '__root__'
     | '/'
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/profile/$id'
     | '/app/employees/$id'
+    | '/app/employees/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -390,6 +400,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/employees/': {
+      id: '/app/employees/'
+      path: '/'
+      fullPath: '/app/employees/'
+      preLoaderRoute: typeof AppEmployeesIndexRouteImport
+      parentRoute: typeof AppEmployeesRoute
+    }
     '/app/employees/$id': {
       id: '/app/employees/$id'
       path: '/$id'
@@ -402,10 +419,12 @@ declare module '@tanstack/react-router' {
 
 interface AppEmployeesRouteChildren {
   AppEmployeesIdRoute: typeof AppEmployeesIdRoute
+  AppEmployeesIndexRoute: typeof AppEmployeesIndexRoute
 }
 
 const AppEmployeesRouteChildren: AppEmployeesRouteChildren = {
   AppEmployeesIdRoute: AppEmployeesIdRoute,
+  AppEmployeesIndexRoute: AppEmployeesIndexRoute,
 }
 
 const AppEmployeesRouteWithChildren = AppEmployeesRoute._addFileChildren(

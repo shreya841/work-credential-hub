@@ -28,6 +28,7 @@ export interface AuthUser {
   role: Role;
   companyId: string | null;
   avatarUrl: string | null;
+  companyStatus?: "pending" | "approved" | "rejected" | "suspended" | "archived" | "deleted" | null;
 }
 
 // ── Company ─────────────────────────────────────────────────────────
@@ -41,7 +42,10 @@ export interface Company {
   website: string;
   logoUrl: string | null;
   verified: boolean;
+  status: "pending" | "approved" | "rejected" | "suspended" | "archived" | "deleted";
   employeeCount: number;
+  creatorName?: string | null;
+  creatorEmail?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,12 +56,12 @@ export interface Employee {
   id: string;
   employeeId: string;
   userId: string | null;
-  companyId: string;
+  companyId: string | null;
   fullName: string;
   email: string;
-  phone: string;
-  designation: string;
-  department: string;
+  phone: string | null;
+  designation: string | null;
+  department: string | null;
   skills: string[];
   joiningDate: string;
   exitDate: string | null;
@@ -65,7 +69,11 @@ export interface Employee {
   status: EmploymentStatus;
   photoUrl: string | null;
   resumeUrl: string | null;
+  certifications?: string[];
+  portfolioLinks?: string[];
+  trustScore?: number;
   verified: boolean;
+  claimStatus?: "unclaimed" | "claimed";
   rating: number;
   createdAt: string;
   updatedAt: string;
@@ -89,7 +97,7 @@ export interface PerformanceReview {
   leadership: number;
   attendance: number;
   overall: number;
-  feedback: string;
+  feedback: string | null;
   createdAt: string;
 }
 
@@ -127,7 +135,7 @@ export interface VerificationRequest {
   employeeName: string;
   status: VerificationStatus;
   requestType: string;
-  responseData: Record<string, unknown> | null;
+  responseData: any;
   createdAt: string;
   resolvedAt: string | null;
 }
@@ -139,9 +147,9 @@ export interface AuditEntry {
   userId: string | null;
   userName: string;
   action: string;
-  targetType: string;
-  targetId: string;
-  metadata: Record<string, unknown> | null;
+  targetType: string | null;
+  targetId: string | null;
+  metadata: any;
   ipAddress: string | null;
   timestamp: string;
   type: AuditActionType;
@@ -164,6 +172,17 @@ export interface HiringTrendPoint {
 
 export interface RatingDistPoint {
   rating: string;
+  count: number;
+}
+
+export interface DepartmentAnalyticsPoint {
+  department: string;
+  total: number;
+  verified: number;
+}
+
+export interface VerificationStatsPoint {
+  status: "pending" | "approved" | "denied";
   count: number;
 }
 

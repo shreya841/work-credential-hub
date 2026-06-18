@@ -32,7 +32,7 @@ const allItems = [
   { key: "employees", title: "Employees", url: "/app/employees", icon: Users },
   { key: "performance", title: "Performance", url: "/app/performance", icon: TrendingUp },
   { key: "search", title: "HR Search", url: "/app/search", icon: Search },
-  { key: "verification", title: "Verification", url: "/app/verification", icon: BadgeCheck },
+  { key: "verification", title: "Verification Requests", url: "/app/verification", icon: BadgeCheck },
   { key: "consent", title: "Consent", url: "/app/consent", icon: ShieldCheck },
   { key: "audit", title: "Audit Logs", url: "/app/audit", icon: ScrollText },
   { key: "settings", title: "Settings", url: "/app/settings", icon: Settings },

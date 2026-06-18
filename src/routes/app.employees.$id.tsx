@@ -1,5 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, Mail, Phone, Briefcase, Calendar, Award } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, BadgeCheck, Mail, Phone, Briefcase, Calendar, Award, Plus, TrendingUp, ShieldAlert } from "lucide-react";
+
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Radar, RadarChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis } from "recharts";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +9,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getEmployeeById } from "@/lib/api/employees.functions";
-import { listReviews } from "@/lib/api/performance.functions";
+import { listReviews, createReview } from "@/lib/api/performance.functions";
+import { createVerificationRequest } from "@/lib/api/verification.functions";
 import { ListSkeleton, ChartSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/components/auth-provider";
+import { canPerformAction } from "@/lib/auth/rbac";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/employees/$id")({
   loader: async ({ params }) => {
@@ -38,10 +49,80 @@ export const Route = createFileRoute("/app/employees/$id")({
 
 function EmployeeDetail() {
   const { employee: e } = Route.useLoaderData();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isApproved = user.role === "super_admin" || user.companyStatus === "approved";
+  const canAddReview = canPerformAction(user.role, "create_review") && isApproved;
 
-  const { data: myReviews = [], isLoading: reviewsLoading } = useQuery({
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [period, setPeriod] = useState("");
+  const [productivity, setProductivity] = useState("5");
+  const [teamwork, setTeamwork] = useState("5");
+  const [communication, setCommunication] = useState("5");
+  const [leadership, setLeadership] = useState("5");
+  const [attendance, setAttendance] = useState("5");
+  const [feedback, setFeedback] = useState("");
+
+  const reviewMutation = useMutation({
+    mutationFn: (newReview: any) => createReview({ data: newReview }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-reviews", e.id] });
+      queryClient.invalidateQueries({ queryKey: ["performance-ranking"] });
+      queryClient.invalidateQueries({ queryKey: ["performance-breakdown", e.id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-rating-dist"] });
+      toast.success("Performance review added successfully");
+      setReviewOpen(false);
+      // Reset form
+      setPeriod("");
+      setProductivity("5");
+      setTeamwork("5");
+      setCommunication("5");
+      setLeadership("5");
+      setAttendance("5");
+      setFeedback("");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to add performance review");
+    },
+  });
+
+  const requestMutation = useMutation({
+    mutationFn: () => createVerificationRequest({ data: { employeeId: e.id, requestType: "Employment Verification" } }),
+    onSuccess: () => {
+      toast.success("Verification check requested successfully. The professional has been notified.");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to request verification");
+    },
+  });
+
+  const handleReviewSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!period.trim()) {
+      toast.error("Please enter a review period");
+      return;
+    }
+    if (!feedback.trim()) {
+      toast.error("Please enter feedback");
+      return;
+    }
+    reviewMutation.mutate({
+      employeeId: e.id,
+      period,
+      productivity: Number(productivity),
+      teamwork: Number(teamwork),
+      communication: Number(communication),
+      leadership: Number(leadership),
+      attendance: Number(attendance),
+      feedback,
+    });
+  };
+
+  const { data: myReviews = [], isLoading: reviewsLoading, error: reviewsError } = useQuery({
     queryKey: ["employee-reviews", e.id],
     queryFn: () => listReviews({ data: { employeeId: e.id } }),
+    retry: false,
   });
 
   const latest = myReviews[0];
@@ -97,7 +178,130 @@ function EmployeeDetail() {
                 {e.designation} · {e.department} · {company?.name ?? "No Company"}
               </p>
             </div>
-            <div className="self-end">
+            <div className="self-end flex items-center gap-2">
+              {canAddReview && (
+                <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-gradient-hero text-primary-foreground shadow-elegant" size="sm">
+                      <Plus className="mr-1 h-4 w-4" /> Add Review
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add Performance Review</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleReviewSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="period">Review Period</Label>
+                        <Input
+                          id="period"
+                          placeholder="e.g. Q1 2026, Annual 2025"
+                          value={period}
+                          onChange={(e) => setPeriod(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="productivity">Productivity</Label>
+                          <Select value={productivity} onValueChange={setProductivity}>
+                            <SelectTrigger id="productivity">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[5, 4, 3, 2, 1].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} Star{n > 1 ? "s" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teamwork">Teamwork</Label>
+                          <Select value={teamwork} onValueChange={setTeamwork}>
+                            <SelectTrigger id="teamwork">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[5, 4, 3, 2, 1].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} Star{n > 1 ? "s" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="communication">Communication</Label>
+                          <Select value={communication} onValueChange={setCommunication}>
+                            <SelectTrigger id="communication">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[5, 4, 3, 2, 1].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} Star{n > 1 ? "s" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="leadership">Leadership</Label>
+                          <Select value={leadership} onValueChange={setLeadership}>
+                            <SelectTrigger id="leadership">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[5, 4, 3, 2, 1].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} Star{n > 1 ? "s" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor="attendance">Attendance</Label>
+                          <Select value={attendance} onValueChange={setAttendance}>
+                            <SelectTrigger id="attendance">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[5, 4, 3, 2, 1].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} Star{n > 1 ? "s" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="feedback">Detailed Feedback</Label>
+                        <Textarea
+                          id="feedback"
+                          rows={3}
+                          placeholder="Provide performance feedback..."
+                          value={feedback}
+                          onChange={(e) => setFeedback(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="submit"
+                          className="bg-gradient-hero text-primary-foreground shadow-elegant w-full"
+                          disabled={reviewMutation.isPending}
+                        >
+                          {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
               <Button asChild variant="outline" size="sm">
                 <Link to="/profile/$id" params={{ id: e.id }}>
                   Public profile
@@ -126,6 +330,26 @@ function EmployeeDetail() {
               <ChartSkeleton />
               <ChartSkeleton />
             </div>
+          ) : reviewsError ? (
+            <Card className="border-amber-200/50 bg-amber-50/10 p-6 text-center">
+              <div className="flex flex-col items-center max-w-md mx-auto space-y-3 py-6">
+                <ShieldAlert className="h-10 w-10 text-amber-600" />
+                <h3 className="text-lg font-bold text-foreground">Detailed ratings are private</h3>
+                <p className="text-sm text-muted-foreground">
+                  You do not have consent to view this professional's performance charts. 
+                  You can submit a background check request to verify their credentials.
+                </p>
+                {user.companyId !== e.companyId && (
+                  <Button 
+                    className="bg-gradient-hero text-primary-foreground shadow-elegant mt-2"
+                    onClick={() => requestMutation.mutate()}
+                    disabled={requestMutation.isPending || !isApproved}
+                  >
+                    {requestMutation.isPending ? "Requesting..." : "Request Verification"}
+                  </Button>
+                )}
+              </div>
+            </Card>
           ) : myReviews.length === 0 ? (
             <div className="py-6">
               <EmptyState
@@ -192,6 +416,14 @@ function EmployeeDetail() {
             <CardContent className="p-6">
               {reviewsLoading ? (
                 <ListSkeleton count={3} />
+              ) : reviewsError ? (
+                <div className="flex flex-col items-center max-w-md mx-auto space-y-3 py-6 text-center">
+                  <ShieldAlert className="h-10 w-10 text-amber-600" />
+                  <h3 className="text-lg font-bold text-foreground">Detailed reviews are private</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Consent is required to view this professional's detailed reviews and evaluator feedback.
+                  </p>
+                </div>
               ) : myReviews.length === 0 ? (
                 <EmptyState
                   icon={TrendingUp}

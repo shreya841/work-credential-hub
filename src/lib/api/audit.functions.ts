@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
 import { eq, desc, and, like, sql, count, or } from "drizzle-orm";
-import { requireRole } from "@/lib/auth/session.server";
+import { requireAuth, requireRole } from "@/lib/auth/session.server";
 import type { AuditActionType, PaginatedResult, AuditEntry } from "@/lib/types";
 
 // ── logAction ────────────────────────────────────────────────────────
@@ -46,11 +46,11 @@ export const logAction = createServerFn({ method: "POST" })
       })
       .returning();
 
-    return entry;
+    return entry as any;
   });
 
 // ── listAuditLogs ────────────────────────────────────────────────────
-// Paginated, filterable list of audit logs. Requires admin or HR role.
+// Paginated, filterable list of audit logs. Requires auth.
 
 export const listAuditLogs = createServerFn({ method: "GET" })
   .validator(
@@ -73,7 +73,7 @@ export const listAuditLogs = createServerFn({ method: "GET" })
     })
   )
   .handler(async ({ data }): Promise<PaginatedResult<AuditEntry>> => {
-    const user = await requireRole(["super_admin", "company_admin", "hr"]);
+    const user = await requireAuth();
     const db = getDb();
 
     const page = data.page ?? 1;
@@ -82,6 +82,10 @@ export const listAuditLogs = createServerFn({ method: "GET" })
 
     // Build conditions
     const conditions: ReturnType<typeof eq>[] = [];
+
+    if (user.role !== "super_admin") {
+      conditions.push(eq(schema.auditLogs.userId, user.id));
+    }
 
     if (data.type) {
       conditions.push(eq(schema.auditLogs.type, data.type));

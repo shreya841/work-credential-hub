@@ -5,6 +5,7 @@ import { Topbar } from "@/components/topbar";
 import { AuthProvider } from "@/components/auth-provider";
 import { getCurrentUser } from "@/lib/api/auth.functions";
 import type { AuthUser } from "@/lib/types";
+import { AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/app")({
   beforeLoad: async ({ location }) => {
@@ -29,6 +30,18 @@ function AppLayout() {
           <AppSidebar />
           <SidebarInset className="flex flex-1 flex-col overflow-x-hidden">
             <Topbar />
+            {((user.role === "company_admin" || user.role === "hr") && user.companyStatus !== "approved") && (
+              <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-3 text-amber-800 dark:text-amber-405 text-sm flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 animate-pulse" />
+                <span>
+                  {user.companyStatus === "rejected"
+                    ? "Your company registration has been rejected. Employee management features are disabled."
+                    : user.companyStatus === "suspended"
+                      ? "Your company workspace has been suspended. Access to workspace features is disabled."
+                      : "Your company is awaiting admin approval. Employee management features are disabled until verification is complete."}
+                </span>
+              </div>
+            )}
             <main className="flex-1 px-4 py-6 sm:px-6">
               <Outlet />
             </main>

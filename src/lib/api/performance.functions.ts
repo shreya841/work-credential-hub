@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
 import { eq, desc, and, sql, count, avg } from "drizzle-orm";
-import { requireAuth, requireRole } from "@/lib/auth/session.server";
+import { requireAuth, requireRole, requireVerifiedCompany } from "@/lib/auth/session.server";
 import type { PerformanceReview } from "@/lib/types";
 
 // ── listReviews ──────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ export const listReviews = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<PerformanceReview[]> => {
     const user = await requireAuth();
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     // Verify access to the employee
@@ -29,13 +30,9 @@ export const listReviews = createServerFn({ method: "GET" })
       throw new Error("Employee not found");
     }
 
-    // Company-scoped access
-    if (
-      user.role !== "super_admin" &&
-      user.companyId !== employee.companyId &&
-      user.id !== employee.userId
-    ) {
-      throw new Error("You do not have access to this employee's reviews");
+    // Check permissions: non-super-admins can only see their own reviews
+    if (user.role !== "super_admin" && user.id !== employee.userId) {
+      throw new Error("You do not have access to this employee's reviews.");
     }
 
     const rows = await db
@@ -101,6 +98,7 @@ export const createReview = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const user = await requireRole(["super_admin", "company_admin", "hr"]);
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     // Verify employee exists and is accessible
@@ -176,11 +174,12 @@ export const createReview = createServerFn({ method: "POST" })
 export const getPerformanceRanking = createServerFn({ method: "GET" }).handler(
   async () => {
     const user = await requireAuth();
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     const companyCondition =
-      user.role !== "super_admin" && user.companyId
-        ? eq(schema.employees.companyId, user.companyId)
+      user.role !== "super_admin"
+        ? eq(schema.employees.userId, user.id)
         : undefined;
 
     const rows = await db
@@ -192,6 +191,7 @@ export const getPerformanceRanking = createServerFn({ method: "GET" }).handler(
         department: schema.employees.department,
         photoUrl: schema.employees.photoUrl,
         rating: schema.employees.rating,
+        verified: schema.employees.verified,
         reviewCount: sql<number>`(
           SELECT COUNT(*)::int FROM ${schema.performanceReviews}
           WHERE ${schema.performanceReviews.employeeId} = ${schema.employees.id}
@@ -220,6 +220,7 @@ export const getPerformanceBreakdown = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const user = await requireAuth();
+    await requireVerifiedCompany(user);
     const db = getDb();
 
     // Verify access
@@ -233,12 +234,9 @@ export const getPerformanceBreakdown = createServerFn({ method: "GET" })
       throw new Error("Employee not found");
     }
 
-    if (
-      user.role !== "super_admin" &&
-      user.companyId !== employee.companyId &&
-      user.id !== employee.userId
-    ) {
-      throw new Error("You do not have access to this employee's performance data");
+    // Check permissions: non-super-admins can only see their own performance breakdown
+    if (user.role !== "super_admin" && user.id !== employee.userId) {
+      throw new Error("You do not have access to this employee's performance data.");
     }
 
     // Get latest review
