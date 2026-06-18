@@ -41,6 +41,7 @@ export const verificationStatusEnum = pgEnum("verification_status", [
   "pending",
   "approved",
   "denied",
+  "expired",
 ]);
 
 export const auditActionEnum = pgEnum("audit_action", [
@@ -62,8 +63,11 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   fullName: varchar("full_name", { length: 255 }).notNull(),
   role: roleEnum("role").notNull().default("employee"),
-  companyId: uuid("company_id").references(() => companies.id),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
   avatarUrl: text("avatar_url"),
+  status: varchar("status", { length: 50 }).notNull().default("active"),
+  loginAttempts: integer("login_attempts").default(0).notNull(),
+  lockoutUntil: timestamp("lockout_until"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -85,7 +89,7 @@ export const companies = pgTable("companies", {
   verified: boolean("verified").default(false).notNull(),
   status: companyStatusEnum("status").default("pending").notNull(),
   employeeCount: integer("employee_count").default(0).notNull(),
-  createdById: uuid("created_by_id").references(() => users.id),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -139,10 +143,10 @@ export const performanceReviews = pgTable("performance_reviews", {
   id: uuid("id").primaryKey().defaultRandom(),
   employeeId: uuid("employee_id")
     .notNull()
-    .references(() => employees.id),
+    .references(() => employees.id, { onDelete: "cascade" }),
   reviewerId: uuid("reviewer_id")
-    .notNull()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: "set null" }),
+  reviewerName: varchar("reviewer_name", { length: 255 }),
   period: varchar("period", { length: 50 }).notNull(),
   productivity: real("productivity").notNull(),
   teamwork: real("teamwork").notNull(),
@@ -165,7 +169,7 @@ export const consentSettings = pgTable("consent_settings", {
   employeeId: uuid("employee_id")
     .notNull()
     .unique()
-    .references(() => employees.id),
+    .references(() => employees.id, { onDelete: "cascade" }),
   publicVisible: boolean("public_visible").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -177,10 +181,10 @@ export const consentGrants = pgTable("consent_grants", {
   id: uuid("id").primaryKey().defaultRandom(),
   employeeId: uuid("employee_id")
     .notNull()
-    .references(() => employees.id),
+    .references(() => employees.id, { onDelete: "cascade" }),
   companyId: uuid("company_id")
     .notNull()
-    .references(() => companies.id),
+    .references(() => companies.id, { onDelete: "cascade" }),
   granted: boolean("granted").default(false).notNull(),
   grantedAt: timestamp("granted_at"),
   revokedAt: timestamp("revoked_at"),
@@ -193,12 +197,10 @@ export const consentGrants = pgTable("consent_grants", {
 
 export const verificationRequests = pgTable("verification_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
-  requestedById: uuid("requested_by_id")
-    .notNull()
-    .references(() => users.id),
+  requestedById: uuid("requested_by_id").references(() => users.id, { onDelete: "set null" }),
   employeeId: uuid("employee_id")
     .notNull()
-    .references(() => employees.id),
+    .references(() => employees.id, { onDelete: "cascade" }),
   status: verificationStatusEnum("status").notNull().default("pending"),
   requestType: varchar("request_type", { length: 100 }).notNull(),
   responseData: jsonb("response_data"),
@@ -215,7 +217,7 @@ export const verificationRequests = pgTable("verification_requests", {
 
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
   action: varchar("action", { length: 255 }).notNull(),
   targetType: varchar("target_type", { length: 100 }).default(""),
   targetId: varchar("target_id", { length: 255 }).default(""),
@@ -235,7 +237,7 @@ export const refreshTokens = pgTable("refresh_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: "cascade" }),
   tokenHash: varchar("token_hash", { length: 255 }).notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -243,6 +245,19 @@ export const refreshTokens = pgTable("refresh_tokens", {
 }, (table) => [
   index("idx_refresh_tokens_user_id").on(table.userId),
 ]);
+
+// ── Notifications ───────────────────────────────────────────────────
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // ── Invitations ─────────────────────────────────────────────────────
 

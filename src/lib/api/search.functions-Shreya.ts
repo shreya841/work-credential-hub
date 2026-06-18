@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
 import { eq, and, or, ilike, exists, sql } from "drizzle-orm";
-import { requireAuth, requireVerifiedCompany } from "@/lib/auth/session.server";
+import { requireAuth } from "@/lib/auth/session.server";
 import type { Employee } from "@/lib/types";
 
 // ── searchEmployees ──────────────────────────────────────────────────
@@ -16,21 +16,7 @@ export const searchEmployees = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<Employee[]> => {
     const user = await requireAuth();
-    await requireVerifiedCompany(user);
     const db = getDb();
-
-    // Only verified companies can search employees
-    if (user.role !== "super_admin" && user.companyId) {
-      const [company] = await db
-        .select({ status: schema.companies.status })
-        .from(schema.companies)
-        .where(eq(schema.companies.id, user.companyId))
-        .limit(1);
-
-      if (!company || company.status !== "verified") {
-        throw new Error("Only verified companies can search employees");
-      }
-    }
 
     const searchPattern = `%${data.query}%`;
     const searchCondition = or(
@@ -43,7 +29,44 @@ export const searchEmployees = createServerFn({ method: "POST" })
     const conditions = [searchCondition];
 
     if (user.role !== "super_admin") {
-      conditions.push(eq(schema.employees.userId, user.id));
+      const consentConditions = [];
+
+      if (user.companyId) {
+        consentConditions.push(eq(schema.employees.companyId, user.companyId));
+      }
+
+      consentConditions.push(
+        exists(
+          db
+            .select()
+            .from(schema.consentSettings)
+            .where(
+              and(
+                eq(schema.consentSettings.employeeId, schema.employees.id),
+                eq(schema.consentSettings.publicVisible, true)
+              )
+            )
+        )
+      );
+
+      if (user.companyId) {
+        consentConditions.push(
+          exists(
+            db
+              .select()
+              .from(schema.consentGrants)
+              .where(
+                and(
+                  eq(schema.consentGrants.employeeId, schema.employees.id),
+                  eq(schema.consentGrants.companyId, user.companyId),
+                  eq(schema.consentGrants.granted, true)
+                )
+              )
+          )
+        );
+      }
+
+      conditions.push(or(...consentConditions));
     }
 
     const rows = await db
@@ -72,7 +95,7 @@ export const searchEmployees = createServerFn({ method: "POST" })
       phone: row.phone,
       designation: row.designation,
       department: row.department,
-      skills: (row.skills as string[]) ?? [],
+      skills: row.skills ?? [],
       joiningDate: row.joiningDate.toISOString(),
       exitDate: row.exitDate ? row.exitDate.toISOString() : null,
       experience: row.experience,

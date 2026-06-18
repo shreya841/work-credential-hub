@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Shield, Database, Key, Server, Users as UsersIcon } from "lucide-react";
+import { Shield, Database, Key, Server } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,17 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/components/auth-provider";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listUsers, updateUserAdmin } from "@/lib/api/users.functions";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/app/settings")({ component: SettingsPage });
+export const Route = createFileRoute("/app/settings-Shreya")({ component: SettingsPage });
 
 function SettingsPage() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
 
   // Configuration settings states
@@ -28,23 +22,6 @@ function SettingsPage() {
   const [allowPublicSearch, setAllowPublicSearch] = useState(true);
   const [enforceMfa, setEnforceMfa] = useState(false);
   const [auditLogRetention, setAuditLogRetention] = useState("90");
-
-  const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ["users-list"],
-    queryFn: () => listUsers({ data: { page: 1, pageSize: 50 } }),
-    enabled: user.role === "super_admin",
-  });
-
-  const updateUserMutation = useMutation({
-    mutationFn: (args: any) => updateUserAdmin({ data: args }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users-list"] });
-      toast.success("User updated successfully");
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to update user");
-    },
-  });
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +42,6 @@ function SettingsPage() {
     );
   }
 
-  const usersList = usersData?.data ?? [];
-
   return (
     <div>
       <PageHeader title="Platform Settings" description="Configure system-level parameters, compliance settings, and audit retention." />
@@ -78,9 +53,6 @@ function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-1.5">
             <Key className="h-4 w-4" /> Security
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-1.5">
-            <UsersIcon className="h-4 w-4" /> User Management
           </TabsTrigger>
           <TabsTrigger value="database" className="flex items-center gap-1.5">
             <Database className="h-4 w-4" /> System
@@ -141,86 +113,6 @@ function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="users" className="mt-4">
-          <Card className="border-border/60">
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>Configure user roles and suspend or unsuspend accounts.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {usersLoading ? (
-                <div className="space-y-2">
-                  <div className="h-10 bg-muted rounded animate-pulse" />
-                  <div className="h-10 bg-muted rounded animate-pulse" />
-                  <div className="h-10 bg-muted rounded animate-pulse" />
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Full Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {usersList.map((u: any) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.fullName}</TableCell>
-                        <TableCell>{u.email}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={u.role}
-                            onValueChange={(val) =>
-                              updateUserMutation.mutate({ userId: u.id, role: val as any })
-                            }
-                            disabled={updateUserMutation.isPending || u.id === user.id}
-                          >
-                            <SelectTrigger className="w-36 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="super_admin">Super Admin</SelectItem>
-                              <SelectItem value="company_admin">Company Admin</SelectItem>
-                              <SelectItem value="hr">HR Manager</SelectItem>
-                              <SelectItem value="employee">Employee</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={u.status === "active" ? "outline" : "destructive"}>
-                            <span className="capitalize">{u.status}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {u.id !== user.id && (
-                            <Button
-                              size="xs"
-                              variant={u.status === "active" ? "destructive" : "outline"}
-                              className="text-xs h-8"
-                              onClick={() =>
-                                updateUserMutation.mutate({
-                                  userId: u.id,
-                                  status: u.status === "active" ? "suspended" : "active",
-                                })
-                              }
-                              disabled={updateUserMutation.isPending}
-                            >
-                              {u.status === "active" ? "Suspend" : "Unsuspend"}
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="database" className="mt-4">
           <Card className="border-border/60">
             <CardHeader>
@@ -251,5 +143,3 @@ function SettingsPage() {
     </div>
   );
 }
-
-

@@ -54,47 +54,38 @@ const fetchPublicProfile = createServerFn({ method: "GET" })
       }
     }
 
-    // External profile access gate: only verified companies can access external profiles
-    if (!authorized && session && session.companyId) {
-      const [comp] = await db
-        .select({ status: schema.companies.status })
-        .from(schema.companies)
-        .where(eq(schema.companies.id, session.companyId))
+    if (!authorized) {
+      const [consent] = await db
+        .select()
+        .from(schema.consentSettings)
+        .where(
+          and(
+            eq(schema.consentSettings.employeeId, emp.id),
+            eq(schema.consentSettings.publicVisible, true)
+          )
+        )
         .limit(1);
 
-      if (comp && comp.status === "verified") {
-        const [consent] = await db
-          .select()
-          .from(schema.consentSettings)
-          .where(
-            and(
-              eq(schema.consentSettings.employeeId, emp.id),
-              eq(schema.consentSettings.publicVisible, true)
-            )
+      if (consent) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized && session && session.companyId) {
+      const [grant] = await db
+        .select()
+        .from(schema.consentGrants)
+        .where(
+          and(
+            eq(schema.consentGrants.employeeId, emp.id),
+            eq(schema.consentGrants.companyId, session.companyId),
+            eq(schema.consentGrants.granted, true)
           )
-          .limit(1);
+        )
+        .limit(1);
 
-        if (consent) {
-          authorized = true;
-        }
-
-        if (!authorized) {
-          const [grant] = await db
-            .select()
-            .from(schema.consentGrants)
-            .where(
-              and(
-                eq(schema.consentGrants.employeeId, emp.id),
-                eq(schema.consentGrants.companyId, session.companyId),
-                eq(schema.consentGrants.granted, true)
-              )
-            )
-            .limit(1);
-
-          if (grant) {
-            authorized = true;
-          }
-        }
+      if (grant) {
+        authorized = true;
       }
     }
 
@@ -165,7 +156,7 @@ const fetchPublicReviews = createServerFn({ method: "GET" })
 
 // ── Route Definition ────────────────────────────────────────────────
 
-export const Route = createFileRoute("/profile/$id")({
+export const Route = createFileRoute("/profile/$id-Shreya")({
   loader: async ({ params }) => {
     try {
       const data = await fetchPublicProfile({ data: { id: params.id } });
@@ -231,7 +222,7 @@ function PublicProfile() {
     );
   }
 
-  const e = data.employee as any;
+  const e = data.employee;
   const company = e.company;
 
   const joiningDateFormatted = e.joiningDate

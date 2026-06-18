@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
-import { eq, and, ne, desc } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { requireAuth } from "@/lib/auth/session.server";
 import type { ConsentSettings, ConsentGrant } from "@/lib/types";
 
@@ -219,25 +219,6 @@ export const grantAccess = createServerFn({ method: "POST" })
         .returning();
     }
 
-    // Notify company admins of the granted company
-    const admins = await db
-      .select({ id: schema.users.id })
-      .from(schema.users)
-      .where(
-        and(
-          eq(schema.users.companyId, data.companyId),
-          eq(schema.users.role, "company_admin")
-        )
-      );
-    
-    for (const admin of admins) {
-      await db.insert(schema.notifications).values({
-        userId: admin.id,
-        title: "Consent Access Granted",
-        message: `Employee "${employee.fullName}" has granted your company access to view their profile.`,
-      });
-    }
-
     await db.insert(schema.auditLogs).values({
       userId: user.id,
       action: `Granted profile access to company ${data.companyId}`,
@@ -291,25 +272,6 @@ export const revokeAccess = createServerFn({ method: "POST" })
       .where(eq(schema.consentGrants.id, existing.id))
       .returning();
 
-    // Notify company admins of the revoked company
-    const admins = await db
-      .select({ id: schema.users.id })
-      .from(schema.users)
-      .where(
-        and(
-          eq(schema.users.companyId, data.companyId),
-          eq(schema.users.role, "company_admin")
-        )
-      );
-    
-    for (const admin of admins) {
-      await db.insert(schema.notifications).values({
-        userId: admin.id,
-        title: "Consent Access Revoked",
-        message: `Employee "${employee.fullName}" has revoked your company's access to view their profile.`,
-      });
-    }
-
     await db.insert(schema.auditLogs).values({
       userId: user.id,
       action: `Revoked profile access from company ${data.companyId}`,
@@ -320,83 +282,3 @@ export const revokeAccess = createServerFn({ method: "POST" })
 
     return grant;
   });
-
-// ── downloadSharedDataHistory ────────────────────────────────────────
-
-export const downloadSharedDataHistory = createServerFn({ method: "GET" }).handler(
-  async (): Promise<string> => {
-    const user = await requireAuth();
-    const db = getDb();
-
-    const [employee] = await db
-      .select()
-      .from(schema.employees)
-      .where(eq(schema.employees.userId, user.id))
-      .limit(1);
-
-    if (!employee) {
-      throw new Error("Employee record not found");
-    }
-
-    const settings = await db
-      .select()
-      .from(schema.consentSettings)
-      .where(eq(schema.consentSettings.employeeId, employee.id));
-
-    const grants = await db
-      .select({
-        id: schema.consentGrants.id,
-        companyName: schema.companies.name,
-        granted: schema.consentGrants.granted,
-        grantedAt: schema.consentGrants.grantedAt,
-        revokedAt: schema.consentGrants.revokedAt,
-      })
-      .from(schema.consentGrants)
-      .leftJoin(schema.companies, eq(schema.consentGrants.companyId, schema.companies.id))
-      .where(eq(schema.consentGrants.employeeId, employee.id));
-
-    const verifications = await db
-      .select({
-        id: schema.verificationRequests.id,
-        companyName: schema.companies.name,
-        status: schema.verificationRequests.status,
-        requestType: schema.verificationRequests.requestType,
-        createdAt: schema.verificationRequests.createdAt,
-        resolvedAt: schema.verificationRequests.resolvedAt,
-      })
-      .from(schema.verificationRequests)
-      .leftJoin(schema.users, eq(schema.verificationRequests.requestedById, schema.users.id))
-      .leftJoin(schema.companies, eq(schema.users.companyId, schema.companies.id))
-      .where(eq(schema.verificationRequests.employeeId, employee.id));
-
-    const audits = await db
-      .select()
-      .from(schema.auditLogs)
-      .where(
-        and(
-          eq(schema.auditLogs.userId, user.id),
-          eq(schema.auditLogs.type, "consent_change")
-        )
-      )
-      .orderBy(desc(schema.auditLogs.timestamp));
-
-    const dataHistory = {
-      exportTimestamp: new Date().toISOString(),
-      employeeProfile: {
-        fullName: employee.fullName,
-        email: employee.email,
-        phone: employee.phone,
-        designation: employee.designation,
-        department: employee.department,
-        joiningDate: employee.joiningDate,
-        exitDate: employee.exitDate,
-      },
-      consentSettings: settings,
-      consentGrants: grants,
-      verificationHistory: verifications,
-      auditLogs: audits,
-    };
-
-    return JSON.stringify(dataHistory, null, 2);
-  }
-);

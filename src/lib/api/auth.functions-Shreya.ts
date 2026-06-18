@@ -3,7 +3,7 @@ import { z } from "zod";
 import { setCookie, deleteCookie } from "@tanstack/react-start/server";
 import { getDb } from "@/lib/db/index.server";
 import * as schema from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   signAccessToken,
   signRefreshToken,
@@ -63,55 +63,11 @@ export const loginUser = createServerFn({ method: "POST" })
       throw new Error("Invalid email or password");
     }
 
-    // Check user suspension status
-    if (user.status === "suspended") {
-      throw new Error("Your account has been suspended by an administrator");
-    }
-
-    // Check company status
-    if (user.companyId) {
-      const [company] = await db
-        .select({ status: schema.companies.status })
-        .from(schema.companies)
-        .where(eq(schema.companies.id, user.companyId))
-        .limit(1);
-
-      if (company && company.status === "suspended") {
-        throw new Error("Your company account has been suspended");
-      }
-    }
-
-    // Check lockout status
-    if (user.lockoutUntil && user.lockoutUntil > new Date()) {
-      const remainingTime = Math.ceil((user.lockoutUntil.getTime() - Date.now()) / 60000);
-      throw new Error(`Account temporarily locked. Please try again in ${remainingTime} minutes.`);
-    }
-
     // Verify password
     const valid = await comparePassword(data.password, user.passwordHash);
     if (!valid) {
-      const attempts = user.loginAttempts + 1;
-      if (attempts >= 5) {
-        const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-        await db
-          .update(schema.users)
-          .set({ loginAttempts: attempts, lockoutUntil })
-          .where(eq(schema.users.id, user.id));
-        throw new Error("Invalid email or password. Too many failed attempts. Account is locked for 15 minutes.");
-      } else {
-        await db
-          .update(schema.users)
-          .set({ loginAttempts: attempts })
-          .where(eq(schema.users.id, user.id));
-        throw new Error("Invalid email or password");
-      }
+      throw new Error("Invalid email or password");
     }
-
-    // Reset login attempts on success
-    await db
-      .update(schema.users)
-      .set({ loginAttempts: 0, lockoutUntil: null })
-      .where(eq(schema.users.id, user.id));
 
     // Generate tokens
     const accessToken = signAccessToken({
