@@ -1,0 +1,2 @@
+CREATE INDEX "idx_companies_created_by_id" ON "companies" USING btree ("created_by_id");--> statement-breakpoint
+CREATE INDEX "idx_employment_history_verification_status" ON "employment_history" USING btree ("verification_status");

@@ -10,51 +10,29 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AppShreyaRouteImport } from './routes/app-Shreya'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProfileIdShreyaRouteImport } from './routes/profile.$id-Shreya'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
-import { Route as AuthSignupShreyaRouteImport } from './routes/auth.signup-Shreya'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
-import { Route as AuthResetShreyaRouteImport } from './routes/auth.reset-Shreya'
 import { Route as AuthResetRouteImport } from './routes/auth.reset'
-import { Route as AuthLoginShreyaRouteImport } from './routes/auth.login-Shreya'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
-import { Route as AuthForgotShreyaRouteImport } from './routes/auth.forgot-Shreya'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
-import { Route as AppVerificationShreyaRouteImport } from './routes/app.verification-Shreya'
 import { Route as AppVerificationRouteImport } from './routes/app.verification'
-import { Route as AppSettingsShreyaRouteImport } from './routes/app.settings-Shreya'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
-import { Route as AppSearchShreyaRouteImport } from './routes/app.search-Shreya'
 import { Route as AppSearchRouteImport } from './routes/app.search'
-import { Route as AppProfileShreyaRouteImport } from './routes/app.profile-Shreya'
 import { Route as AppProfileRouteImport } from './routes/app.profile'
-import { Route as AppPerformanceShreyaRouteImport } from './routes/app.performance-Shreya'
 import { Route as AppPerformanceRouteImport } from './routes/app.performance'
-import { Route as AppEmployeesShreyaRouteImport } from './routes/app.employees-Shreya'
 import { Route as AppEmployeesRouteImport } from './routes/app.employees'
-import { Route as AppDashboardShreyaRouteImport } from './routes/app.dashboard-Shreya'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
-import { Route as AppConsentShreyaRouteImport } from './routes/app.consent-Shreya'
 import { Route as AppConsentRouteImport } from './routes/app.consent'
-import { Route as AppCompaniesShreyaRouteImport } from './routes/app.companies-Shreya'
 import { Route as AppCompaniesRouteImport } from './routes/app.companies'
-import { Route as AppAuditShreyaRouteImport } from './routes/app.audit-Shreya'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppEmployeesIndexRouteImport } from './routes/app.employees.index'
-import { Route as AppEmployeesIdShreyaRouteImport } from './routes/app.employees.$id-Shreya'
 import { Route as AppEmployeesIdRouteImport } from './routes/app.employees.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppShreyaRoute = AppShreyaRouteImport.update({
-  id: '/app-Shreya',
-  path: '/app-Shreya',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -67,29 +45,14 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfileIdShreyaRoute = ProfileIdShreyaRouteImport.update({
-  id: '/profile/$id-Shreya',
-  path: '/profile/$id-Shreya',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProfileIdRoute = ProfileIdRouteImport.update({
   id: '/profile/$id',
   path: '/profile/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthSignupShreyaRoute = AuthSignupShreyaRouteImport.update({
-  id: '/signup-Shreya',
-  path: '/signup-Shreya',
-  getParentRoute: () => AuthRoute,
-} as any)
 const AuthSignupRoute = AuthSignupRouteImport.update({
   id: '/signup',
   path: '/signup',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthResetShreyaRoute = AuthResetShreyaRouteImport.update({
-  id: '/reset-Shreya',
-  path: '/reset-Shreya',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthResetRoute = AuthResetRouteImport.update({
@@ -97,19 +60,9 @@ const AuthResetRoute = AuthResetRouteImport.update({
   path: '/reset',
   getParentRoute: () => AuthRoute,
 } as any)
-const AuthLoginShreyaRoute = AuthLoginShreyaRouteImport.update({
-  id: '/login-Shreya',
-  path: '/login-Shreya',
-  getParentRoute: () => AuthRoute,
-} as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthForgotShreyaRoute = AuthForgotShreyaRouteImport.update({
-  id: '/forgot-Shreya',
-  path: '/forgot-Shreya',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthForgotRoute = AuthForgotRouteImport.update({
@@ -117,19 +70,9 @@ const AuthForgotRoute = AuthForgotRouteImport.update({
   path: '/forgot',
   getParentRoute: () => AuthRoute,
 } as any)
-const AppVerificationShreyaRoute = AppVerificationShreyaRouteImport.update({
-  id: '/verification-Shreya',
-  path: '/verification-Shreya',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppVerificationRoute = AppVerificationRouteImport.update({
   id: '/verification',
   path: '/verification',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsShreyaRoute = AppSettingsShreyaRouteImport.update({
-  id: '/settings-Shreya',
-  path: '/settings-Shreya',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -137,19 +80,9 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSearchShreyaRoute = AppSearchShreyaRouteImport.update({
-  id: '/search-Shreya',
-  path: '/search-Shreya',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppSearchRoute = AppSearchRouteImport.update({
   id: '/search',
   path: '/search',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProfileShreyaRoute = AppProfileShreyaRouteImport.update({
-  id: '/profile-Shreya',
-  path: '/profile-Shreya',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProfileRoute = AppProfileRouteImport.update({
@@ -157,19 +90,9 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
-const AppPerformanceShreyaRoute = AppPerformanceShreyaRouteImport.update({
-  id: '/performance-Shreya',
-  path: '/performance-Shreya',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppPerformanceRoute = AppPerformanceRouteImport.update({
   id: '/performance',
   path: '/performance',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEmployeesShreyaRoute = AppEmployeesShreyaRouteImport.update({
-  id: '/employees-Shreya',
-  path: '/employees-Shreya',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEmployeesRoute = AppEmployeesRouteImport.update({
@@ -177,19 +100,9 @@ const AppEmployeesRoute = AppEmployeesRouteImport.update({
   path: '/employees',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDashboardShreyaRoute = AppDashboardShreyaRouteImport.update({
-  id: '/dashboard-Shreya',
-  path: '/dashboard-Shreya',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConsentShreyaRoute = AppConsentShreyaRouteImport.update({
-  id: '/consent-Shreya',
-  path: '/consent-Shreya',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConsentRoute = AppConsentRouteImport.update({
@@ -197,19 +110,9 @@ const AppConsentRoute = AppConsentRouteImport.update({
   path: '/consent',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCompaniesShreyaRoute = AppCompaniesShreyaRouteImport.update({
-  id: '/companies-Shreya',
-  path: '/companies-Shreya',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppCompaniesRoute = AppCompaniesRouteImport.update({
   id: '/companies',
   path: '/companies',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAuditShreyaRoute = AppAuditShreyaRouteImport.update({
-  id: '/audit-Shreya',
-  path: '/audit-Shreya',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAuditRoute = AppAuditRouteImport.update({
@@ -222,11 +125,6 @@ const AppEmployeesIndexRoute = AppEmployeesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppEmployeesRoute,
 } as any)
-const AppEmployeesIdShreyaRoute = AppEmployeesIdShreyaRouteImport.update({
-  id: '/$id-Shreya',
-  path: '/$id-Shreya',
-  getParentRoute: () => AppEmployeesRoute,
-} as any)
 const AppEmployeesIdRoute = AppEmployeesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -236,118 +134,67 @@ const AppEmployeesIdRoute = AppEmployeesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
-  '/app-Shreya': typeof AppShreyaRoute
   '/auth': typeof AuthRouteWithChildren
   '/app/audit': typeof AppAuditRoute
-  '/app/audit-Shreya': typeof AppAuditShreyaRoute
   '/app/companies': typeof AppCompaniesRoute
-  '/app/companies-Shreya': typeof AppCompaniesShreyaRoute
   '/app/consent': typeof AppConsentRoute
-  '/app/consent-Shreya': typeof AppConsentShreyaRoute
   '/app/dashboard': typeof AppDashboardRoute
-  '/app/dashboard-Shreya': typeof AppDashboardShreyaRoute
   '/app/employees': typeof AppEmployeesRouteWithChildren
-  '/app/employees-Shreya': typeof AppEmployeesShreyaRoute
   '/app/performance': typeof AppPerformanceRoute
-  '/app/performance-Shreya': typeof AppPerformanceShreyaRoute
   '/app/profile': typeof AppProfileRoute
-  '/app/profile-Shreya': typeof AppProfileShreyaRoute
   '/app/search': typeof AppSearchRoute
-  '/app/search-Shreya': typeof AppSearchShreyaRoute
   '/app/settings': typeof AppSettingsRoute
-  '/app/settings-Shreya': typeof AppSettingsShreyaRoute
   '/app/verification': typeof AppVerificationRoute
-  '/app/verification-Shreya': typeof AppVerificationShreyaRoute
   '/auth/forgot': typeof AuthForgotRoute
-  '/auth/forgot-Shreya': typeof AuthForgotShreyaRoute
   '/auth/login': typeof AuthLoginRoute
-  '/auth/login-Shreya': typeof AuthLoginShreyaRoute
   '/auth/reset': typeof AuthResetRoute
-  '/auth/reset-Shreya': typeof AuthResetShreyaRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/auth/signup-Shreya': typeof AuthSignupShreyaRoute
   '/profile/$id': typeof ProfileIdRoute
-  '/profile/$id-Shreya': typeof ProfileIdShreyaRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
-  '/app/employees/$id-Shreya': typeof AppEmployeesIdShreyaRoute
   '/app/employees/': typeof AppEmployeesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
-  '/app-Shreya': typeof AppShreyaRoute
   '/auth': typeof AuthRouteWithChildren
   '/app/audit': typeof AppAuditRoute
-  '/app/audit-Shreya': typeof AppAuditShreyaRoute
   '/app/companies': typeof AppCompaniesRoute
-  '/app/companies-Shreya': typeof AppCompaniesShreyaRoute
   '/app/consent': typeof AppConsentRoute
-  '/app/consent-Shreya': typeof AppConsentShreyaRoute
   '/app/dashboard': typeof AppDashboardRoute
-  '/app/dashboard-Shreya': typeof AppDashboardShreyaRoute
-  '/app/employees-Shreya': typeof AppEmployeesShreyaRoute
   '/app/performance': typeof AppPerformanceRoute
-  '/app/performance-Shreya': typeof AppPerformanceShreyaRoute
   '/app/profile': typeof AppProfileRoute
-  '/app/profile-Shreya': typeof AppProfileShreyaRoute
   '/app/search': typeof AppSearchRoute
-  '/app/search-Shreya': typeof AppSearchShreyaRoute
   '/app/settings': typeof AppSettingsRoute
-  '/app/settings-Shreya': typeof AppSettingsShreyaRoute
   '/app/verification': typeof AppVerificationRoute
-  '/app/verification-Shreya': typeof AppVerificationShreyaRoute
   '/auth/forgot': typeof AuthForgotRoute
-  '/auth/forgot-Shreya': typeof AuthForgotShreyaRoute
   '/auth/login': typeof AuthLoginRoute
-  '/auth/login-Shreya': typeof AuthLoginShreyaRoute
   '/auth/reset': typeof AuthResetRoute
-  '/auth/reset-Shreya': typeof AuthResetShreyaRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/auth/signup-Shreya': typeof AuthSignupShreyaRoute
   '/profile/$id': typeof ProfileIdRoute
-  '/profile/$id-Shreya': typeof ProfileIdShreyaRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
-  '/app/employees/$id-Shreya': typeof AppEmployeesIdShreyaRoute
   '/app/employees': typeof AppEmployeesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
-  '/app-Shreya': typeof AppShreyaRoute
   '/auth': typeof AuthRouteWithChildren
   '/app/audit': typeof AppAuditRoute
-  '/app/audit-Shreya': typeof AppAuditShreyaRoute
   '/app/companies': typeof AppCompaniesRoute
-  '/app/companies-Shreya': typeof AppCompaniesShreyaRoute
   '/app/consent': typeof AppConsentRoute
-  '/app/consent-Shreya': typeof AppConsentShreyaRoute
   '/app/dashboard': typeof AppDashboardRoute
-  '/app/dashboard-Shreya': typeof AppDashboardShreyaRoute
   '/app/employees': typeof AppEmployeesRouteWithChildren
-  '/app/employees-Shreya': typeof AppEmployeesShreyaRoute
   '/app/performance': typeof AppPerformanceRoute
-  '/app/performance-Shreya': typeof AppPerformanceShreyaRoute
   '/app/profile': typeof AppProfileRoute
-  '/app/profile-Shreya': typeof AppProfileShreyaRoute
   '/app/search': typeof AppSearchRoute
-  '/app/search-Shreya': typeof AppSearchShreyaRoute
   '/app/settings': typeof AppSettingsRoute
-  '/app/settings-Shreya': typeof AppSettingsShreyaRoute
   '/app/verification': typeof AppVerificationRoute
-  '/app/verification-Shreya': typeof AppVerificationShreyaRoute
   '/auth/forgot': typeof AuthForgotRoute
-  '/auth/forgot-Shreya': typeof AuthForgotShreyaRoute
   '/auth/login': typeof AuthLoginRoute
-  '/auth/login-Shreya': typeof AuthLoginShreyaRoute
   '/auth/reset': typeof AuthResetRoute
-  '/auth/reset-Shreya': typeof AuthResetShreyaRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/auth/signup-Shreya': typeof AuthSignupShreyaRoute
   '/profile/$id': typeof ProfileIdRoute
-  '/profile/$id-Shreya': typeof ProfileIdShreyaRoute
   '/app/employees/$id': typeof AppEmployeesIdRoute
-  '/app/employees/$id-Shreya': typeof AppEmployeesIdShreyaRoute
   '/app/employees/': typeof AppEmployeesIndexRoute
 }
 export interface FileRouteTypes {
@@ -355,127 +202,74 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
-    | '/app-Shreya'
     | '/auth'
     | '/app/audit'
-    | '/app/audit-Shreya'
     | '/app/companies'
-    | '/app/companies-Shreya'
     | '/app/consent'
-    | '/app/consent-Shreya'
     | '/app/dashboard'
-    | '/app/dashboard-Shreya'
     | '/app/employees'
-    | '/app/employees-Shreya'
     | '/app/performance'
-    | '/app/performance-Shreya'
     | '/app/profile'
-    | '/app/profile-Shreya'
     | '/app/search'
-    | '/app/search-Shreya'
     | '/app/settings'
-    | '/app/settings-Shreya'
     | '/app/verification'
-    | '/app/verification-Shreya'
     | '/auth/forgot'
-    | '/auth/forgot-Shreya'
     | '/auth/login'
-    | '/auth/login-Shreya'
     | '/auth/reset'
-    | '/auth/reset-Shreya'
     | '/auth/signup'
-    | '/auth/signup-Shreya'
     | '/profile/$id'
-    | '/profile/$id-Shreya'
     | '/app/employees/$id'
-    | '/app/employees/$id-Shreya'
     | '/app/employees/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/app'
-    | '/app-Shreya'
     | '/auth'
     | '/app/audit'
-    | '/app/audit-Shreya'
     | '/app/companies'
-    | '/app/companies-Shreya'
     | '/app/consent'
-    | '/app/consent-Shreya'
     | '/app/dashboard'
-    | '/app/dashboard-Shreya'
-    | '/app/employees-Shreya'
     | '/app/performance'
-    | '/app/performance-Shreya'
     | '/app/profile'
-    | '/app/profile-Shreya'
     | '/app/search'
-    | '/app/search-Shreya'
     | '/app/settings'
-    | '/app/settings-Shreya'
     | '/app/verification'
-    | '/app/verification-Shreya'
     | '/auth/forgot'
-    | '/auth/forgot-Shreya'
     | '/auth/login'
-    | '/auth/login-Shreya'
     | '/auth/reset'
-    | '/auth/reset-Shreya'
     | '/auth/signup'
-    | '/auth/signup-Shreya'
     | '/profile/$id'
-    | '/profile/$id-Shreya'
     | '/app/employees/$id'
-    | '/app/employees/$id-Shreya'
     | '/app/employees'
   id:
     | '__root__'
     | '/'
     | '/app'
-    | '/app-Shreya'
     | '/auth'
     | '/app/audit'
-    | '/app/audit-Shreya'
     | '/app/companies'
-    | '/app/companies-Shreya'
     | '/app/consent'
-    | '/app/consent-Shreya'
     | '/app/dashboard'
-    | '/app/dashboard-Shreya'
     | '/app/employees'
-    | '/app/employees-Shreya'
     | '/app/performance'
-    | '/app/performance-Shreya'
     | '/app/profile'
-    | '/app/profile-Shreya'
     | '/app/search'
-    | '/app/search-Shreya'
     | '/app/settings'
-    | '/app/settings-Shreya'
     | '/app/verification'
-    | '/app/verification-Shreya'
     | '/auth/forgot'
-    | '/auth/forgot-Shreya'
     | '/auth/login'
-    | '/auth/login-Shreya'
     | '/auth/reset'
-    | '/auth/reset-Shreya'
     | '/auth/signup'
-    | '/auth/signup-Shreya'
     | '/profile/$id'
-    | '/profile/$id-Shreya'
     | '/app/employees/$id'
-    | '/app/employees/$id-Shreya'
     | '/app/employees/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
-  AppShreyaRoute: typeof AppShreyaRoute
   AuthRoute: typeof AuthRouteWithChildren
   ProfileIdRoute: typeof ProfileIdRoute
-  ProfileIdShreyaRoute: typeof ProfileIdShreyaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -485,13 +279,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app-Shreya': {
-      id: '/app-Shreya'
-      path: '/app-Shreya'
-      fullPath: '/app-Shreya'
-      preLoaderRoute: typeof AppShreyaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -508,13 +295,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profile/$id-Shreya': {
-      id: '/profile/$id-Shreya'
-      path: '/profile/$id-Shreya'
-      fullPath: '/profile/$id-Shreya'
-      preLoaderRoute: typeof ProfileIdShreyaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/profile/$id': {
       id: '/profile/$id'
       path: '/profile/$id'
@@ -522,25 +302,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/signup-Shreya': {
-      id: '/auth/signup-Shreya'
-      path: '/signup-Shreya'
-      fullPath: '/auth/signup-Shreya'
-      preLoaderRoute: typeof AuthSignupShreyaRouteImport
-      parentRoute: typeof AuthRoute
-    }
     '/auth/signup': {
       id: '/auth/signup'
       path: '/signup'
       fullPath: '/auth/signup'
       preLoaderRoute: typeof AuthSignupRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/auth/reset-Shreya': {
-      id: '/auth/reset-Shreya'
-      path: '/reset-Shreya'
-      fullPath: '/auth/reset-Shreya'
-      preLoaderRoute: typeof AuthResetShreyaRouteImport
       parentRoute: typeof AuthRoute
     }
     '/auth/reset': {
@@ -550,25 +316,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthResetRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/auth/login-Shreya': {
-      id: '/auth/login-Shreya'
-      path: '/login-Shreya'
-      fullPath: '/auth/login-Shreya'
-      preLoaderRoute: typeof AuthLoginShreyaRouteImport
-      parentRoute: typeof AuthRoute
-    }
     '/auth/login': {
       id: '/auth/login'
       path: '/login'
       fullPath: '/auth/login'
       preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/auth/forgot-Shreya': {
-      id: '/auth/forgot-Shreya'
-      path: '/forgot-Shreya'
-      fullPath: '/auth/forgot-Shreya'
-      preLoaderRoute: typeof AuthForgotShreyaRouteImport
       parentRoute: typeof AuthRoute
     }
     '/auth/forgot': {
@@ -578,25 +330,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/app/verification-Shreya': {
-      id: '/app/verification-Shreya'
-      path: '/verification-Shreya'
-      fullPath: '/app/verification-Shreya'
-      preLoaderRoute: typeof AppVerificationShreyaRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/verification': {
       id: '/app/verification'
       path: '/verification'
       fullPath: '/app/verification'
       preLoaderRoute: typeof AppVerificationRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/settings-Shreya': {
-      id: '/app/settings-Shreya'
-      path: '/settings-Shreya'
-      fullPath: '/app/settings-Shreya'
-      preLoaderRoute: typeof AppSettingsShreyaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/settings': {
@@ -606,25 +344,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/search-Shreya': {
-      id: '/app/search-Shreya'
-      path: '/search-Shreya'
-      fullPath: '/app/search-Shreya'
-      preLoaderRoute: typeof AppSearchShreyaRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/search': {
       id: '/app/search'
       path: '/search'
       fullPath: '/app/search'
       preLoaderRoute: typeof AppSearchRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/profile-Shreya': {
-      id: '/app/profile-Shreya'
-      path: '/profile-Shreya'
-      fullPath: '/app/profile-Shreya'
-      preLoaderRoute: typeof AppProfileShreyaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/profile': {
@@ -634,25 +358,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/performance-Shreya': {
-      id: '/app/performance-Shreya'
-      path: '/performance-Shreya'
-      fullPath: '/app/performance-Shreya'
-      preLoaderRoute: typeof AppPerformanceShreyaRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/performance': {
       id: '/app/performance'
       path: '/performance'
       fullPath: '/app/performance'
       preLoaderRoute: typeof AppPerformanceRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/employees-Shreya': {
-      id: '/app/employees-Shreya'
-      path: '/employees-Shreya'
-      fullPath: '/app/employees-Shreya'
-      preLoaderRoute: typeof AppEmployeesShreyaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/employees': {
@@ -662,25 +372,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmployeesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/dashboard-Shreya': {
-      id: '/app/dashboard-Shreya'
-      path: '/dashboard-Shreya'
-      fullPath: '/app/dashboard-Shreya'
-      preLoaderRoute: typeof AppDashboardShreyaRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/dashboard': {
       id: '/app/dashboard'
       path: '/dashboard'
       fullPath: '/app/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/consent-Shreya': {
-      id: '/app/consent-Shreya'
-      path: '/consent-Shreya'
-      fullPath: '/app/consent-Shreya'
-      preLoaderRoute: typeof AppConsentShreyaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/consent': {
@@ -690,25 +386,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConsentRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/companies-Shreya': {
-      id: '/app/companies-Shreya'
-      path: '/companies-Shreya'
-      fullPath: '/app/companies-Shreya'
-      preLoaderRoute: typeof AppCompaniesShreyaRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/companies': {
       id: '/app/companies'
       path: '/companies'
       fullPath: '/app/companies'
       preLoaderRoute: typeof AppCompaniesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/audit-Shreya': {
-      id: '/app/audit-Shreya'
-      path: '/audit-Shreya'
-      fullPath: '/app/audit-Shreya'
-      preLoaderRoute: typeof AppAuditShreyaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/audit': {
@@ -725,13 +407,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmployeesIndexRouteImport
       parentRoute: typeof AppEmployeesRoute
     }
-    '/app/employees/$id-Shreya': {
-      id: '/app/employees/$id-Shreya'
-      path: '/$id-Shreya'
-      fullPath: '/app/employees/$id-Shreya'
-      preLoaderRoute: typeof AppEmployeesIdShreyaRouteImport
-      parentRoute: typeof AppEmployeesRoute
-    }
     '/app/employees/$id': {
       id: '/app/employees/$id'
       path: '/$id'
@@ -744,13 +419,11 @@ declare module '@tanstack/react-router' {
 
 interface AppEmployeesRouteChildren {
   AppEmployeesIdRoute: typeof AppEmployeesIdRoute
-  AppEmployeesIdShreyaRoute: typeof AppEmployeesIdShreyaRoute
   AppEmployeesIndexRoute: typeof AppEmployeesIndexRoute
 }
 
 const AppEmployeesRouteChildren: AppEmployeesRouteChildren = {
   AppEmployeesIdRoute: AppEmployeesIdRoute,
-  AppEmployeesIdShreyaRoute: AppEmployeesIdShreyaRoute,
   AppEmployeesIndexRoute: AppEmployeesIndexRoute,
 }
 
@@ -760,72 +433,44 @@ const AppEmployeesRouteWithChildren = AppEmployeesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
-  AppAuditShreyaRoute: typeof AppAuditShreyaRoute
   AppCompaniesRoute: typeof AppCompaniesRoute
-  AppCompaniesShreyaRoute: typeof AppCompaniesShreyaRoute
   AppConsentRoute: typeof AppConsentRoute
-  AppConsentShreyaRoute: typeof AppConsentShreyaRoute
   AppDashboardRoute: typeof AppDashboardRoute
-  AppDashboardShreyaRoute: typeof AppDashboardShreyaRoute
   AppEmployeesRoute: typeof AppEmployeesRouteWithChildren
-  AppEmployeesShreyaRoute: typeof AppEmployeesShreyaRoute
   AppPerformanceRoute: typeof AppPerformanceRoute
-  AppPerformanceShreyaRoute: typeof AppPerformanceShreyaRoute
   AppProfileRoute: typeof AppProfileRoute
-  AppProfileShreyaRoute: typeof AppProfileShreyaRoute
   AppSearchRoute: typeof AppSearchRoute
-  AppSearchShreyaRoute: typeof AppSearchShreyaRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppSettingsShreyaRoute: typeof AppSettingsShreyaRoute
   AppVerificationRoute: typeof AppVerificationRoute
-  AppVerificationShreyaRoute: typeof AppVerificationShreyaRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
-  AppAuditShreyaRoute: AppAuditShreyaRoute,
   AppCompaniesRoute: AppCompaniesRoute,
-  AppCompaniesShreyaRoute: AppCompaniesShreyaRoute,
   AppConsentRoute: AppConsentRoute,
-  AppConsentShreyaRoute: AppConsentShreyaRoute,
   AppDashboardRoute: AppDashboardRoute,
-  AppDashboardShreyaRoute: AppDashboardShreyaRoute,
   AppEmployeesRoute: AppEmployeesRouteWithChildren,
-  AppEmployeesShreyaRoute: AppEmployeesShreyaRoute,
   AppPerformanceRoute: AppPerformanceRoute,
-  AppPerformanceShreyaRoute: AppPerformanceShreyaRoute,
   AppProfileRoute: AppProfileRoute,
-  AppProfileShreyaRoute: AppProfileShreyaRoute,
   AppSearchRoute: AppSearchRoute,
-  AppSearchShreyaRoute: AppSearchShreyaRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppSettingsShreyaRoute: AppSettingsShreyaRoute,
   AppVerificationRoute: AppVerificationRoute,
-  AppVerificationShreyaRoute: AppVerificationShreyaRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
   AuthForgotRoute: typeof AuthForgotRoute
-  AuthForgotShreyaRoute: typeof AuthForgotShreyaRoute
   AuthLoginRoute: typeof AuthLoginRoute
-  AuthLoginShreyaRoute: typeof AuthLoginShreyaRoute
   AuthResetRoute: typeof AuthResetRoute
-  AuthResetShreyaRoute: typeof AuthResetShreyaRoute
   AuthSignupRoute: typeof AuthSignupRoute
-  AuthSignupShreyaRoute: typeof AuthSignupShreyaRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthForgotRoute: AuthForgotRoute,
-  AuthForgotShreyaRoute: AuthForgotShreyaRoute,
   AuthLoginRoute: AuthLoginRoute,
-  AuthLoginShreyaRoute: AuthLoginShreyaRoute,
   AuthResetRoute: AuthResetRoute,
-  AuthResetShreyaRoute: AuthResetShreyaRoute,
   AuthSignupRoute: AuthSignupRoute,
-  AuthSignupShreyaRoute: AuthSignupShreyaRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -833,10 +478,8 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
-  AppShreyaRoute: AppShreyaRoute,
   AuthRoute: AuthRouteWithChildren,
   ProfileIdRoute: ProfileIdRoute,
-  ProfileIdShreyaRoute: ProfileIdShreyaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -73,6 +73,7 @@ export const users = pgTable("users", {
 }, (table) => [
   index("idx_users_company_id").on(table.companyId),
   index("idx_users_email").on(table.email),
+  index("idx_users_status").on(table.status),
   index("idx_users_created_at").on(table.createdAt),
 ]);
 
@@ -94,6 +95,7 @@ export const companies = pgTable("companies", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_companies_status").on(table.status),
+  index("idx_companies_created_by_id").on(table.createdById),
   index("idx_companies_created_at").on(table.createdAt),
 ]);
 
@@ -257,7 +259,9 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   read: boolean("read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_notifications_user_id").on(table.userId),
+]);
 
 // ── Invitations ─────────────────────────────────────────────────────
 
@@ -275,6 +279,7 @@ export const invitations = pgTable("invitations", {
 }, (table) => [
   index("idx_invitations_company_id").on(table.companyId),
   index("idx_invitations_employee_id").on(table.employeeId),
+  index("idx_invitations_status").on(table.status),
   index("idx_invitations_created_at").on(table.createdAt),
 ]);
 
@@ -299,5 +304,6 @@ export const employmentHistory = pgTable("employment_history", {
 }, (table) => [
   index("idx_employment_history_employee_id").on(table.employeeId),
   index("idx_employment_history_company_id").on(table.companyId),
+  index("idx_employment_history_verification_status").on(table.verificationStatus),
   index("idx_employment_history_created_at").on(table.createdAt),
 ]);

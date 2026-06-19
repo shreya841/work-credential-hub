@@ -5,6 +5,7 @@ import * as schema from "@/lib/db/schema";
 import { eq, desc, and, or, ilike, sql, count, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, requireVerifiedCompany } from "@/lib/auth/session.server";
 import type { PaginatedResult, Employee, EmployeeWithCompany } from "@/lib/types";
+import { sendEmail, getEmployeeInvitationHtml, getEmployeeStatusUpdateHtml, getEmployeeDeletionHtml } from "@/lib/email.server";
 
 async function getTrustScore(db: any, employeeId: string, experience: number, verified: boolean): Promise<number> {
   const reviews = await db
@@ -206,7 +207,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     z.object({
       fullName: z.string().min(1, "Full name is required"),
       email: z.string().email("Invalid email"),
-      phone: z.string().optional(),
+      phone: z.string().min(1, "Phone number is required"),
       designation: z.string().min(1, "Designation is required"),
       department: z.string().min(1, "Department is required"),
       skills: z.array(z.string()).optional().default([]),
@@ -219,6 +220,7 @@ export const createEmployee = createServerFn({ method: "POST" })
       companyId: z.string().uuid().optional(),
       userId: z.string().uuid().nullable().optional(),
       employeeId: z.string().optional(),
+      sendEmail: z.boolean().optional().default(true),
     })
   )
   .handler(async ({ data }) => {
@@ -279,6 +281,14 @@ export const createEmployee = createServerFn({ method: "POST" })
 
     const userIdToLink = existingUser ? existingUser.id : null;
 
+    // Get company name for email template
+    const [comp] = await db
+      .select({ name: schema.companies.name })
+      .from(schema.companies)
+      .where(eq(schema.companies.id, companyId))
+      .limit(1);
+    const companyName = comp?.name || "your employer";
+
     const [employee] = await db
       .insert(schema.employees)
       .values({
@@ -309,6 +319,54 @@ export const createEmployee = createServerFn({ method: "POST" })
         .where(eq(schema.users.id, userIdToLink));
     }
 
+    let invitationId: string | null = null;
+
+    if (!userIdToLink && !data.userId) {
+      // Create invitation for claiming profile
+      // Check if invitation already exists for this email and delete it to prevent unique violation
+      await db
+        .delete(schema.invitations)
+        .where(eq(schema.invitations.email, data.email.toLowerCase().trim()));
+
+      const [invitation] = await db
+        .insert(schema.invitations)
+        .values({
+          email: data.email.toLowerCase().trim(),
+          companyId,
+          employeeId: employee.id,
+          status: "pending",
+        })
+        .returning();
+
+      invitationId = invitation.id;
+
+      // Send invitation link if requested
+      if (data.sendEmail) {
+        const appUrl = process.env.APP_URL || "http://localhost:3000";
+        const inviteLink = `${appUrl}/auth/signup?email=${encodeURIComponent(employee.email)}&inviteId=${invitation.id}`;
+
+        const emailHtml = getEmployeeInvitationHtml({
+          companyName,
+          claimLink: inviteLink,
+        });
+
+        try {
+          await sendEmail({
+            to: employee.email,
+            subject: "You Have Been Added to WorkCred",
+            html: emailHtml,
+          });
+        } catch (emailErr: any) {
+          console.warn("Failed to send invitation email via Resend:", emailErr.message);
+          console.log("============================================================");
+          console.log("[Resend Sandbox Fallback Log]");
+          console.log(`To: ${employee.email}`);
+          console.log(`Claim Link: ${inviteLink}`);
+          console.log("============================================================");
+        }
+      }
+    }
+
     // Audit
     await db.insert(schema.auditLogs).values({
       userId: user.id,
@@ -318,8 +376,87 @@ export const createEmployee = createServerFn({ method: "POST" })
       type: "create",
     });
 
-    return employee as any;
+    return {
+      ...employee,
+      invitationId,
+      companyName,
+    } as any;
   });
+
+// ── getEmployeeInviteLink ────────────────────────────────────────────
+
+export const getEmployeeInviteLink = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      employeeId: z.string().uuid("Invalid employee ID"),
+    })
+  )
+  .handler(async ({ data }) => {
+    const user = await requireAuth();
+    await requireVerifiedCompany(user);
+    const db = getDb();
+
+    // Verify employee exists
+    const [employee] = await db
+      .select()
+      .from(schema.employees)
+      .where(eq(schema.employees.id, data.employeeId))
+      .limit(1);
+
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    // Access control
+    if (user.role !== "super_admin" && employee.companyId !== user.companyId) {
+      throw new Error("Unauthorized to access this employee's invite link");
+    }
+
+    // Get company name
+    const [comp] = await db
+      .select({ name: schema.companies.name })
+      .from(schema.companies)
+      .where(eq(schema.companies.id, employee.companyId))
+      .limit(1);
+    const companyName = comp?.name || "your employer";
+
+    // Find or create invitation
+    let [invitation] = await db
+      .select()
+      .from(schema.invitations)
+      .where(eq(schema.invitations.employeeId, employee.id))
+      .limit(1);
+
+    if (!invitation && employee.claimStatus === "unclaimed") {
+      // Create a new invitation
+      await db
+        .delete(schema.invitations)
+        .where(eq(schema.invitations.email, employee.email.toLowerCase().trim()));
+
+      const [newInv] = await db
+        .insert(schema.invitations)
+        .values({
+          email: employee.email.toLowerCase().trim(),
+          companyId: employee.companyId,
+          employeeId: employee.id,
+          status: "pending",
+        })
+        .returning();
+      invitation = newInv;
+    }
+
+    if (!invitation) {
+      throw new Error("No pending invitation found for this employee");
+    }
+
+    return {
+      invitationId: invitation.id,
+      fullName: employee.fullName,
+      phone: employee.phone || "",
+      companyName,
+    };
+  });
+
 
 // ── updateEmployee ───────────────────────────────────────────────────
 
@@ -404,6 +541,32 @@ export const updateEmployee = createServerFn({ method: "POST" })
       .where(eq(schema.employees.id, id))
       .returning();
 
+    // Send email notification if status changed
+    if (updates.status && updates.status !== existing.status) {
+      const [comp] = await db
+        .select({ name: schema.companies.name })
+        .from(schema.companies)
+        .where(eq(schema.companies.id, updated.companyId))
+        .limit(1);
+      const companyName = comp?.name || "your employer";
+
+      try {
+        const emailHtml = getEmployeeStatusUpdateHtml({
+          employeeName: updated.fullName,
+          companyName,
+          status: updated.status as any,
+        });
+
+        await sendEmail({
+          to: updated.email,
+          subject: "Your Employment Status Has Been Updated",
+          html: emailHtml,
+        });
+      } catch (emailErr) {
+        console.error("Failed to send status update email:", emailErr);
+      }
+    }
+
     // Audit
     await db.insert(schema.auditLogs).values({
       userId: user.id,
@@ -415,6 +578,79 @@ export const updateEmployee = createServerFn({ method: "POST" })
     });
 
     return updated as any;
+  });
+
+// ── deleteEmployee ───────────────────────────────────────────────────
+
+export const deleteEmployee = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string().uuid("Invalid employee ID"),
+    })
+  )
+  .handler(async ({ data }) => {
+    const user = await requireRole(["super_admin", "company_admin", "hr"]);
+    const db = getDb();
+
+    // Verify employee exists
+    const [existing] = await db
+      .select()
+      .from(schema.employees)
+      .where(eq(schema.employees.id, data.id))
+      .limit(1);
+
+    if (!existing) {
+      throw new Error("Employee not found");
+    }
+
+    // Permission check
+    if (user.role !== "super_admin" && user.companyId !== existing.companyId) {
+      throw new Error("You do not have permission to delete this employee");
+    }
+
+    // Fetch company name for email template
+    const [comp] = await db
+      .select({ name: schema.companies.name })
+      .from(schema.companies)
+      .where(eq(schema.companies.id, existing.companyId))
+      .limit(1);
+    const companyName = comp?.name || "your employer";
+
+    // Send email notification to employee
+    try {
+      const emailHtml = getEmployeeDeletionHtml({
+        employeeName: existing.fullName,
+        companyName,
+      });
+
+      await sendEmail({
+        to: existing.email,
+        subject: "Your WorkCred Profile has been Removed",
+        html: emailHtml,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send deletion email:", emailErr);
+    }
+
+    // Safely delete referencing rows first to avoid constraint violation
+    await db.delete(schema.invitations).where(eq(schema.invitations.employeeId, data.id));
+    await db.delete(schema.employmentHistory).where(eq(schema.employmentHistory.employeeId, data.id));
+
+    // Delete employee
+    await db
+      .delete(schema.employees)
+      .where(eq(schema.employees.id, data.id));
+
+    // Audit
+    await db.insert(schema.auditLogs).values({
+      userId: user.id,
+      action: `Deleted employee: ${existing.fullName} (${existing.employeeId})`,
+      targetType: "employee",
+      targetId: data.id,
+      type: "delete",
+    });
+
+    return { success: true };
   });
 
 // ── getEmployeeById ──────────────────────────────────────────────────

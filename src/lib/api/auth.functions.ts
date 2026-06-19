@@ -9,8 +9,11 @@ import {
   signRefreshToken,
   hashPassword,
   comparePassword,
+  hashTokenFast,
+  compareTokenFast,
 } from "@/lib/auth/jwt.server";
 import { getSession, requireAuth } from "@/lib/auth/session.server";
+import { sendEmail, getPasswordResetHtml } from "@/lib/email.server";
 import type { AuthUser } from "@/lib/types";
 import { v4 as uuidv4 } from "uuid";
 
@@ -69,6 +72,7 @@ export const loginUser = createServerFn({ method: "POST" })
     }
 
     // Check company status
+    let companyStatus: AuthUser["companyStatus"] = null;
     if (user.companyId) {
       const [company] = await db
         .select({ status: schema.companies.status })
@@ -76,8 +80,11 @@ export const loginUser = createServerFn({ method: "POST" })
         .where(eq(schema.companies.id, user.companyId))
         .limit(1);
 
-      if (company && company.status === "suspended") {
-        throw new Error("Your company account has been suspended");
+      if (company) {
+        companyStatus = company.status;
+        if (company.status === "suspended") {
+          throw new Error("Your company account has been suspended");
+        }
       }
     }
 
@@ -125,7 +132,7 @@ export const loginUser = createServerFn({ method: "POST" })
     setAuthCookies(accessToken, refreshToken);
 
     // Store refresh token hash in DB
-    const refreshTokenHash = await hashPassword(refreshToken);
+    const refreshTokenHash = hashTokenFast(refreshToken);
     await db.insert(schema.refreshTokens).values({
       userId: user.id,
       tokenHash: refreshTokenHash,
@@ -149,6 +156,7 @@ export const loginUser = createServerFn({ method: "POST" })
         role: user.role as AuthUser["role"],
         companyId: user.companyId,
         avatarUrl: user.avatarUrl,
+        companyStatus,
       },
     };
   });
@@ -216,7 +224,7 @@ export const signupUser = createServerFn({ method: "POST" })
     setAuthCookies(accessToken, refreshToken);
 
     // Store refresh token hash
-    const refreshTokenHash = await hashPassword(refreshToken);
+    const refreshTokenHash = hashTokenFast(refreshToken);
     await db.insert(schema.refreshTokens).values({
       userId: user.id,
       tokenHash: refreshTokenHash,
@@ -240,6 +248,7 @@ export const signupUser = createServerFn({ method: "POST" })
         role: user.role as AuthUser["role"],
         companyId: user.companyId,
         avatarUrl: user.avatarUrl,
+        companyStatus: company.status,
       },
     };
   });
@@ -271,7 +280,7 @@ export const forgotPassword = createServerFn({ method: "POST" })
 
     // Generate a reset token
     const resetToken = uuidv4();
-    const resetTokenHash = await hashPassword(resetToken);
+    const resetTokenHash = hashTokenFast(resetToken);
 
     // Store as a refresh token with a short expiry (1 hour)
     await db.insert(schema.refreshTokens).values({
@@ -280,9 +289,26 @@ export const forgotPassword = createServerFn({ method: "POST" })
       expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
     });
 
-    // In production, send an email. For now, log the reset link.
     const resetLink = `${process.env.APP_URL ?? "http://localhost:3000"}/reset-password?token=${resetToken}&userId=${user.id}`;
-    console.log(`[Password Reset] Link for ${user.email}: ${resetLink}`);
+    const emailHtml = getPasswordResetHtml({
+      fullName: user.fullName,
+      resetLink,
+    });
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset Your WorkCred Password",
+        html: emailHtml,
+      });
+    } catch (emailErr: any) {
+      console.warn("Failed to send password reset email via Resend:", emailErr.message);
+      console.log("============================================================");
+      console.log("[Resend Sandbox Fallback Log]");
+      console.log(`To: ${user.email}`);
+      console.log(`Reset Link: ${resetLink}`);
+      console.log("============================================================");
+    }
 
     return {
       message:
@@ -375,7 +401,7 @@ export const resetPassword = createServerFn({ method: "POST" })
     let validTokenId: string | null = null;
     for (const t of tokens) {
       if (t.expiresAt < new Date()) continue; // Expired
-      const isMatch = await comparePassword(data.token, t.tokenHash);
+      const isMatch = await compareTokenFast(data.token, t.tokenHash);
       if (isMatch) {
         validTokenId = t.id;
         break;

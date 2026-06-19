@@ -8,6 +8,7 @@ import { loginUser } from "@/lib/api/auth.functions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/auth/login")({
   component: Login,
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/auth/login")({
 
 function Login() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -34,6 +36,7 @@ function Login() {
           password,
         },
       });
+      queryClient.clear();
       toast.success(`Welcome back, ${response.user.fullName}!`);
       navigate({ to: "/app/dashboard" });
     } catch (err) {

@@ -8,11 +8,15 @@ import type { AuthUser } from "@/lib/types";
 import { AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/app")({
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ location, context }) => {
     if (location.pathname === "/app" || location.pathname === "/app/") {
       throw redirect({ to: "/app/dashboard" });
     }
-    const { user } = await getCurrentUser();
+    const { queryClient } = context;
+    const { user } = await queryClient.ensureQueryData({
+      queryKey: ["current-user"],
+      queryFn: () => getCurrentUser(),
+    });
     if (!user) {
       throw redirect({ to: "/auth/login" });
     }

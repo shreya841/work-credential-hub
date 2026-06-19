@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
 
 const signupAction = createServerFn({ method: "POST" })
   .validator(
@@ -158,6 +159,19 @@ const signupAction = createServerFn({ method: "POST" })
           });
       }
 
+      // Send Welcome Registration Email
+      try {
+        const { sendEmail, getWelcomeEmailHtml } = await import("@/lib/email.server");
+        const welcomeHtml = getWelcomeEmailHtml({ fullName: user.fullName });
+        await sendEmail({
+          to: user.email,
+          subject: "Welcome to WorkCred!",
+          html: welcomeHtml,
+        });
+      } catch (emailErr) {
+        console.error("Failed to send welcome email:", emailErr);
+      }
+
       const accessToken = signAccessToken({
         userId: user.id,
         role: user.role,
@@ -195,15 +209,68 @@ const signupAction = createServerFn({ method: "POST" })
     }
   });
 
+const getInvitationEmail = createServerFn({ method: "GET" })
+  .validator(
+    z.object({
+      inviteId: z.string(),
+    })
+  )
+  .handler(async ({ data }) => {
+    const { getDb } = await import("@/lib/db/index.server");
+    const { invitations } = await import("@/lib/db/schema");
+    const { eq, and } = await import("drizzle-orm");
+    const db = getDb();
+
+    const [inv] = await db
+      .select({ email: invitations.email })
+      .from(invitations)
+      .where(and(eq(invitations.id, data.inviteId), eq(invitations.status, "pending")))
+      .limit(1);
+
+    return inv || null;
+  });
+
+const signupSearchSchema = z.object({
+  email: z.string().optional(),
+  inviteId: z.string().optional(),
+});
+
 export const Route = createFileRoute("/auth/signup")({
+  validateSearch: (search) => signupSearchSchema.parse(search),
   component: Signup,
 });
 
 function Signup() {
+  const search = Route.useSearch();
+  const prefilledEmail = search.email || "";
+  const inviteId = search.inviteId || "";
+
   const nav = useNavigate();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [role, setRole] = useState<"company_admin" | "employee" | "independent_professional">("company_admin");
+  const [emailVal, setEmailVal] = useState(prefilledEmail);
+  const [role, setRole] = useState<"company_admin" | "employee" | "independent_professional">(
+    (prefilledEmail || inviteId) ? "employee" : "company_admin"
+  );
+
+  useEffect(() => {
+    if (inviteId && !prefilledEmail) {
+      getInvitationEmail({ data: { inviteId } })
+        .then((res) => {
+          if (res?.email) {
+            setEmailVal(res.email);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [inviteId, prefilledEmail]);
+
+  useEffect(() => {
+    if (prefilledEmail) {
+      setEmailVal(prefilledEmail);
+    }
+  }, [prefilledEmail]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -220,7 +287,14 @@ function Signup() {
     const companyWebsite = formData.get("companyWebsite") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
     
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
     const phone = formData.get("phone") as string;
     const skills = formData.get("skills") as string;
     const experience = formData.get("experience") as string;
@@ -254,6 +328,7 @@ function Signup() {
           resumeUrl: role === "independent_professional" ? resumeUrl : undefined,
         },
       });
+      queryClient.clear();
       toast.success("Account created successfully");
       nav({ to: "/app/dashboard" });
     } catch (err) {
@@ -367,7 +442,15 @@ function Signup() {
         )}
         <div className="space-y-2">
           <Label htmlFor="email">Work email</Label>
-          <Input id="email" name="email" type="email" required placeholder="you@company.com" />
+          <Input 
+            id="email" 
+            name="email" 
+            type="email" 
+            required 
+            placeholder="you@company.com" 
+            value={emailVal} 
+            onChange={(e) => setEmailVal(e.target.value)} 
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
@@ -380,11 +463,22 @@ function Signup() {
             placeholder="Min 8 characters"
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            required
+            minLength={8}
+            placeholder="Confirm your password"
+          />
+        </div>
         <Button
           className="w-full bg-gradient-hero text-primary-foreground shadow-elegant"
           disabled={loading}
         >
-          {loading ? "Creating…" : "Create workspace"}
+          {loading ? "Creating…" : (prefilledEmail || inviteId) ? "Claim Profile" : "Create workspace"}
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted-foreground">

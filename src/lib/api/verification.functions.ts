@@ -5,6 +5,7 @@ import * as schema from "@/lib/db/schema";
 import { eq, and, desc, count, sql, inArray, ilike, or } from "drizzle-orm";
 import { requireAuth, requireRole, requireVerifiedCompany } from "@/lib/auth/session.server";
 import type { VerificationRequest } from "@/lib/types";
+import { sendEmail, getVerificationRequestHtml } from "@/lib/email.server";
 
 // ── createVerificationRequest ───────────────────────────────────────
 
@@ -73,6 +74,23 @@ export const createVerificationRequest = createServerFn({ method: "POST" })
         title: "New Verification Request",
         message: `Company "${companyName}" has requested to verify your credentials.`,
       });
+    }
+
+    // Send actual email to employee
+    try {
+      const emailHtml = getVerificationRequestHtml({
+        employeeName: employee.fullName,
+        companyName,
+        requestType: data.requestType,
+      });
+
+      await sendEmail({
+        to: employee.email,
+        subject: "New Verification Request on WorkCred",
+        html: emailHtml,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send verification request email:", emailErr);
     }
 
     await db.insert(schema.auditLogs).values({

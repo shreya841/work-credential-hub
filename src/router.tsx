@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, dehydrate, hydrate } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
@@ -20,6 +20,16 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 1000 * 60 * 5, // Route component preloading cache matches staleTime
+    dehydrate: () => {
+      return {
+        dehydratedState: dehydrate(queryClient),
+      };
+    },
+    hydrate: (state: any) => {
+      if (state.dehydratedState) {
+        hydrate(queryClient, state.dehydratedState);
+      }
+    },
   });
 
   return router;

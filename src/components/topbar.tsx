@@ -17,15 +17,18 @@ import { logoutUser } from "@/lib/api/auth.functions";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { ROLE_LABELS } from "@/lib/auth/rbac";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function Topbar() {
   const { theme, toggle } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleSignOut = async () => {
     try {
       await logoutUser();
+      queryClient.clear();
       navigate({ to: "/auth/login" });
     } catch (error) {
       console.error("Logout failed:", error);

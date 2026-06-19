@@ -59,16 +59,6 @@ import type { VerificationRequest } from "@/lib/types";
 
 // ── Route ────────────────────────────────────────────────────────────
 export const Route = createFileRoute("/app/verification")({
-  loader: async ({ context: { queryClient } }) => {
-    try {
-      await queryClient.prefetchQuery({
-        queryKey: ["verification-requests"],
-        queryFn: () => listVerificationRequests({ data: { page: 1, pageSize: 100 } }),
-      });
-    } catch (e) {
-      console.error("Verification requests preloading failed:", e);
-    }
-  },
   component: VerificationPage,
 });
 

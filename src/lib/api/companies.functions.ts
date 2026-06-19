@@ -5,6 +5,7 @@ import * as schema from "@/lib/db/schema";
 import { eq, desc, and, or, ilike, sql, count, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, requireVerifiedCompany } from "@/lib/auth/session.server";
 import type { PaginatedResult, Company } from "@/lib/types";
+import { sendEmail, getCompanyApprovalHtml, getCompanyRejectionHtml } from "@/lib/email.server";
 
 // ── listCompanies ────────────────────────────────────────────────────
 
@@ -223,6 +224,45 @@ export const updateCompany = createServerFn({ method: "POST" })
       type: "update",
       metadata: { updatedFields: Object.keys(updates) },
     });
+
+    // Send email outcome notification if status changed to approved or rejected
+    if (currentCompany && updated.status !== currentCompany.status) {
+      if (updated.createdById && (updated.status === "approved" || updated.status === "rejected")) {
+        try {
+          const [creator] = await db
+            .select({ email: schema.users.email, fullName: schema.users.fullName })
+            .from(schema.users)
+            .where(eq(schema.users.id, updated.createdById))
+            .limit(1);
+
+          if (creator && creator.email) {
+            if (updated.status === "approved") {
+              const emailHtml = getCompanyApprovalHtml({
+                creatorName: creator.fullName,
+                companyName: updated.name,
+              });
+              await sendEmail({
+                to: creator.email,
+                subject: `Your Company Has Been Approved on WorkCred`,
+                html: emailHtml,
+              });
+            } else if (updated.status === "rejected") {
+              const emailHtml = getCompanyRejectionHtml({
+                creatorName: creator.fullName,
+                companyName: updated.name,
+              });
+              await sendEmail({
+                to: creator.email,
+                subject: `Your Company Registration Request - WorkCred`,
+                html: emailHtml,
+              });
+            }
+          }
+        } catch (emailErr) {
+          console.error("Failed to send company verification outcome email:", emailErr);
+        }
+      }
+    }
 
     return updated;
   });

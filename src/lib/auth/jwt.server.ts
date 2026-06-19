@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 // ── Secret Accessors ────────────────────────────────────────────────
 
@@ -95,4 +96,22 @@ export async function comparePassword(
   hash: string
 ): Promise<boolean> {
   return bcrypt.compare(password, hash);
+}
+
+// ── Fast Token Hashing (SHA-256) for Refresh & Reset Tokens ────────────────
+
+export function hashTokenFast(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+export async function compareTokenFast(token: string, hash: string): Promise<boolean> {
+  if (hash.startsWith("$2a$") || hash.startsWith("$2b$")) {
+    return bcrypt.compare(token, hash);
+  }
+  try {
+    const tokenHash = hashTokenFast(token);
+    return crypto.timingSafeEqual(Buffer.from(tokenHash), Buffer.from(hash));
+  } catch {
+    return false;
+  }
 }

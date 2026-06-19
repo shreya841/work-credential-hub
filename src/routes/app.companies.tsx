@@ -22,18 +22,9 @@ import {
 import { useAuth } from "@/components/auth-provider";
 import { CardGridSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 export const Route = createFileRoute("/app/companies")({
-  loader: async ({ context: { queryClient } }) => {
-    try {
-      await queryClient.prefetchQuery({
-        queryKey: ["companies"],
-        queryFn: () => listCompanies({ data: { page: 1, pageSize: 50 } }),
-      });
-    } catch (e) {
-      console.error("Companies preloading failed:", e);
-    }
-  },
   component: Companies,
 });
 
@@ -49,9 +40,12 @@ function Companies() {
   const [location, setLocation] = useState("");
   const [website, setWebsite] = useState("");
 
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+
   const { data, isLoading } = useQuery({
-    queryKey: ["companies"],
-    queryFn: () => listCompanies({ data: { page: 1, pageSize: 50 } }),
+    queryKey: ["companies", page],
+    queryFn: () => listCompanies({ data: { page, pageSize } }),
   });
 
   const mutation = useMutation({
@@ -218,98 +212,126 @@ function Companies() {
           onAction={isSuperAdmin ? () => setOpen(true) : undefined}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {companiesList.map((c) => (
-            <Card
-              key={c.id}
-              className="group border-border/60 bg-gradient-card transition hover:-translate-y-0.5 hover:shadow-elegant cursor-pointer"
-              onClick={() => setSelectedCompany(c)}
-            >
-              <CardContent className="p-5">
-                <div className="flex items-start gap-3">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-hero font-display text-lg font-bold text-primary-foreground shadow-elegant">
-                    {c.name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="truncate font-display text-lg font-semibold">{c.name}</h3>
-                      {c.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />}
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {companiesList.map((c) => (
+              <Card
+                key={c.id}
+                className="group border-border/60 bg-gradient-card transition hover:-translate-y-0.5 hover:shadow-elegant cursor-pointer"
+                onClick={() => setSelectedCompany(c)}
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-hero font-display text-lg font-bold text-primary-foreground shadow-elegant">
+                      {c.name.substring(0, 2).toUpperCase()}
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">{c.industry}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="truncate font-display text-lg font-semibold">{c.name}</h3>
+                        {c.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />}
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">{c.industry}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 space-y-1.5 text-sm text-muted-foreground border-t border-border/30 pt-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-                    <span><strong>Location:</strong> {c.location || "N/A"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-                    <strong>Website:</strong>{" "}
-                    {c.website ? (
-                      <a href={c.website} target="_blank" rel="noreferrer" className="hover:underline text-primary">
-                        {c.website.replace(/^https?:\/\/(www\.)?/, "")}
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground/60">N/A</span>
+                  <div className="mt-4 space-y-1.5 text-sm text-muted-foreground border-t border-border/30 pt-3">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                      <span><strong>Location:</strong> {c.location || "N/A"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                      <strong>Website:</strong>{" "}
+                      {c.website ? (
+                        <a href={c.website} target="_blank" rel="noreferrer" className="hover:underline text-primary">
+                          {c.website.replace(/^https?:\/\/(www\.)?/, "")}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground/60">N/A</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                      <span><strong>Declared Size:</strong> {c.size || "1-10"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                      <span><strong>Registered Users:</strong> {c.employeeCount.toLocaleString()}</span>
+                    </div>
+                    {(c.creatorName || c.creatorEmail) && (
+                      <div className="mt-3 border-t border-dashed border-border/50 pt-2 text-xs">
+                        <div className="font-semibold text-muted-foreground/80">Registered By:</div>
+                        <div className="truncate text-foreground/90 font-medium">{c.creatorName || "Unknown Admin"}</div>
+                        <div className="truncate text-muted-foreground/70">{c.creatorEmail}</div>
+                      </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-                    <span><strong>Declared Size:</strong> {c.size || "1-10"}</span>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
+                    <Badge
+                      variant={
+                        c.status === "approved"
+                          ? "default"
+                          : c.status === "pending"
+                          ? "outline"
+                          : "destructive"
+                      }
+                      className={
+                        c.status === "approved"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/20 capitalize font-medium"
+                          : c.status === "rejected"
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border-rose-500/20 capitalize font-medium"
+                          : c.status === "suspended"
+                          ? "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/20 capitalize font-medium"
+                          : c.status === "archived"
+                          ? "bg-slate-500/10 text-slate-600 dark:text-slate-400 hover:bg-slate-500/10 border-slate-500/20 capitalize font-medium"
+                          : c.status === "deleted"
+                          ? "bg-red-950/15 text-red-500 dark:text-red-400 hover:bg-red-950/15 border-red-500/30 capitalize font-medium line-through"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/20 capitalize font-medium"
+                      }
+                    >
+                      {c.status || "Pending"}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-primary font-medium cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCompany(c);
+                      }}
+                    >
+                      View Profile
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-                    <span><strong>Registered Users:</strong> {c.employeeCount.toLocaleString()}</span>
-                  </div>
-                  {(c.creatorName || c.creatorEmail) && (
-                    <div className="mt-3 border-t border-dashed border-border/50 pt-2 text-xs">
-                      <div className="font-semibold text-muted-foreground/80">Registered By:</div>
-                      <div className="truncate text-foreground/90 font-medium">{c.creatorName || "Unknown Admin"}</div>
-                      <div className="truncate text-muted-foreground/70">{c.creatorEmail}</div>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
-                  <Badge
-                    variant={
-                      c.status === "approved"
-                        ? "default"
-                        : c.status === "pending"
-                        ? "outline"
-                        : "destructive"
-                    }
-                    className={
-                      c.status === "approved"
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/20 capitalize font-medium"
-                        : c.status === "rejected"
-                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border-rose-500/20 capitalize font-medium"
-                        : c.status === "suspended"
-                        ? "bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/20 capitalize font-medium"
-                        : c.status === "archived"
-                        ? "bg-slate-500/10 text-slate-600 dark:text-slate-400 hover:bg-slate-500/10 border-slate-500/20 capitalize font-medium"
-                        : c.status === "deleted"
-                        ? "bg-red-950/15 text-red-500 dark:text-red-400 hover:bg-red-950/15 border-red-500/30 capitalize font-medium line-through"
-                        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/20 capitalize font-medium"
-                    }
-                  >
-                    {c.status || "Pending"}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-primary font-medium cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedCompany(c);
-                    }}
-                  >
-                    View Profile
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {!isLoading && (data?.totalPages ?? 0) > 1 && (
+            <Pagination className="mt-4">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className={page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                {Array.from({ length: data?.totalPages ?? 0 }).map((_, i) => (
+                  <PaginationItem key={i}>
+                    <PaginationLink isActive={page === i + 1} onClick={() => setPage(i + 1)} className="cursor-pointer">
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setPage((p) => Math.min(data?.totalPages ?? 1, p + 1))}
+                    className={page === (data?.totalPages ?? 1) ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       )}
 

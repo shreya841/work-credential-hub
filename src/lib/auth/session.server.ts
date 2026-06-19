@@ -1,5 +1,5 @@
 import { getCookie, setCookie, getRequest } from "@tanstack/react-start/server";
-import { verifyAccessToken, verifyRefreshToken, comparePassword, hashPassword, signAccessToken, signRefreshToken } from "./jwt.server";
+import { verifyAccessToken, verifyRefreshToken, comparePassword, hashPassword, signAccessToken, signRefreshToken, compareTokenFast, hashTokenFast } from "./jwt.server";
 import { getDb } from "../db/index.server";
 import { users, companies, refreshTokens } from "../db/schema";
 import { eq, and } from "drizzle-orm";
@@ -38,22 +38,17 @@ export async function getSession(): Promise<AuthUser | null> {
           companyId: users.companyId,
           avatarUrl: users.avatarUrl,
           status: users.status,
+          companyStatus: companies.status,
         })
         .from(users)
+        .leftJoin(companies, eq(users.companyId, companies.id))
         .where(eq(users.id, decoded.userId))
         .limit(1);
 
       if (user && user.status === "active") {
         // Suspend user if company is suspended
-        if (user.companyId) {
-          const [company] = await db
-            .select({ status: companies.status })
-            .from(companies)
-            .where(eq(companies.id, user.companyId))
-            .limit(1);
-          if (company && company.status === "suspended") {
-            return null;
-          }
+        if (user.companyStatus === "suspended") {
+          return null;
         }
         return user as AuthUser;
       }
@@ -79,6 +74,7 @@ export async function getSession(): Promise<AuthUser | null> {
         companyId: users.companyId,
         avatarUrl: users.avatarUrl,
         status: users.status,
+        companyStatus: companies.status,
       })
       .from(users)
       .leftJoin(companies, eq(users.companyId, companies.id))
@@ -90,15 +86,8 @@ export async function getSession(): Promise<AuthUser | null> {
     }
 
     // Suspend user if company is suspended
-    if (user.companyId) {
-      const [company] = await db
-        .select({ status: companies.status })
-        .from(companies)
-        .where(eq(companies.id, user.companyId))
-        .limit(1);
-      if (company && company.status === "suspended") {
-        return null;
-      }
+    if (user.companyStatus === "suspended") {
+      return null;
     }
 
     // Verify active refresh token in database
@@ -115,7 +104,7 @@ export async function getSession(): Promise<AuthUser | null> {
     let activeRecord = null;
     for (const r of dbTokens) {
       if (r.expiresAt < new Date()) continue;
-      const isMatch = await comparePassword(refreshToken, r.tokenHash);
+      const isMatch = await compareTokenFast(refreshToken, r.tokenHash);
       if (isMatch) {
         activeRecord = r;
         break;
@@ -158,7 +147,7 @@ export async function getSession(): Promise<AuthUser | null> {
     });
 
     // Save new refresh token in DB
-    const newHash = await hashPassword(newRefreshToken);
+    const newHash = hashTokenFast(newRefreshToken);
     await db.insert(refreshTokens).values({
       userId: user.id,
       tokenHash: newHash,
