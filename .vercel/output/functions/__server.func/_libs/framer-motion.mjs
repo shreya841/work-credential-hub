@@ -1,6 +1,6 @@
 import { a as __toCommonJS, n as __esmMin, o as __toESM, r as __exportAll } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
-import { i as require_jsx_runtime } from "./@radix-ui/react-arrow+[...].mjs";
+import { l as require_jsx_runtime } from "./@radix-ui/react-arrow+[...].mjs";
 //#region node_modules/framer-motion/dist/es/context/LayoutGroupContext.mjs
 var import_jsx_runtime = require_jsx_runtime();
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
@@ -7755,7 +7755,7 @@ var is_prop_valid_framer_motion_exports = /* @__PURE__ */ __exportAll({ default:
 var is_prop_valid_framer_motion_default;
 var init_is_prop_valid_framer_motion = __esmMin((() => {
 	is_prop_valid_framer_motion_default = {};
-	throw new Error(`Could not resolve "@emotion/is-prop-valid" imported by "framer-motion".`);
+	throw new Error(`Could not resolve "@emotion/is-prop-valid" imported by "framer-motion". Is it installed?`);
 }));
 //#endregion
 //#region node_modules/framer-motion/dist/es/render/dom/utils/filter-props.mjs

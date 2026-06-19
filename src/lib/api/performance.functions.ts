@@ -30,8 +30,8 @@ export const listReviews = createServerFn({ method: "GET" })
       throw new Error("Employee not found");
     }
 
-    // Check permissions: non-super-admins can only see their own reviews
-    if (user.role !== "super_admin" && user.id !== employee.userId) {
+    // Check permissions: super_admin, company_admin, hr, or the employee themselves can see reviews
+    if (user.role !== "super_admin" && user.role !== "company_admin" && user.role !== "hr" && user.id !== employee.userId) {
       throw new Error("You do not have access to this employee's reviews.");
     }
 

@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-dev-runtime-BYBUl1oR.js";import{z as t}from"./index-TPvHKndT.js";var n=e(),r=`C:/Users/Himanshi/OneDrive/Desktop/work-credential-hub/src/routes/app.employees.tsx?tsr-split=component`,i=()=>(0,n.jsxDEV)(t,{},void 0,!1,{fileName:r,lineNumber:2,columnNumber:30},void 0);export{i as component};

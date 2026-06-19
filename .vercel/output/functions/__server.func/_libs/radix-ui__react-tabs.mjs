@@ -1,6 +1,6 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
-import { i as require_jsx_runtime, n as Primitive } from "./@radix-ui/react-arrow+[...].mjs";
+import { l as require_jsx_runtime, n as Primitive } from "./@radix-ui/react-arrow+[...].mjs";
 import { s as createContextScope } from "./@radix-ui/react-avatar+[...].mjs";
 import { t as composeEventHandlers } from "./radix-ui__primitive.mjs";
 import { _ as useControllableState, d as Presence, p as useId } from "./@radix-ui/react-dialog+[...].mjs";

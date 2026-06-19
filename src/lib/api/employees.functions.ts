@@ -457,6 +457,71 @@ export const getEmployeeInviteLink = createServerFn({ method: "POST" })
     };
   });
 
+// ── regenerateEmployeeInviteLink ─────────────────────────────────────
+
+export const regenerateEmployeeInviteLink = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      employeeId: z.string().uuid("Invalid employee ID"),
+    })
+  )
+  .handler(async ({ data }) => {
+    const user = await requireAuth();
+    await requireVerifiedCompany(user);
+    const db = getDb();
+
+    // Verify employee exists
+    const [employee] = await db
+      .select()
+      .from(schema.employees)
+      .where(eq(schema.employees.id, data.employeeId))
+      .limit(1);
+
+    if (!employee) {
+      throw new Error("Employee not found");
+    }
+
+    if (employee.claimStatus !== "unclaimed") {
+      throw new Error("Employee profile has already been claimed");
+    }
+
+    // Access control
+    if (user.role !== "super_admin" && employee.companyId !== user.companyId) {
+      throw new Error("Unauthorized to access this employee's invite link");
+    }
+
+    // Get company name
+    const [comp] = await db
+      .select({ name: schema.companies.name })
+      .from(schema.companies)
+      .where(eq(schema.companies.id, employee.companyId))
+      .limit(1);
+    const companyName = comp?.name || "your employer";
+
+    // Delete existing invitation(s)
+    await db
+      .delete(schema.invitations)
+      .where(eq(schema.invitations.employeeId, employee.id));
+
+    // Create a brand new invitation
+    const [newInv] = await db
+      .insert(schema.invitations)
+      .values({
+        email: employee.email.toLowerCase().trim(),
+        companyId: employee.companyId,
+        employeeId: employee.id,
+        status: "pending",
+      })
+      .returning();
+
+    return {
+      invitationId: newInv.id,
+      fullName: employee.fullName,
+      phone: employee.phone || "",
+      companyName,
+    };
+  });
+
 
 // ── updateEmployee ───────────────────────────────────────────────────
 

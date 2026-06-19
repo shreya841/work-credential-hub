@@ -45,7 +45,7 @@ const fetchPublicProfile = createServerFn({ method: "GET" })
     let authorized = false;
 
     if (session) {
-      if (session.role === "super_admin") {
+      if (session.role === "super_admin" || session.role === "company_admin" || session.role === "hr") {
         authorized = true;
       } else if (emp.userId === session.id) {
         authorized = true;

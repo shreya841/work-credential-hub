@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, BadgeCheck, Search, Filter, Users, MoreVertical, Trash2, Ban, X, Copy } from "lucide-react";
+import { Plus, BadgeCheck, Search, Filter, Users, MoreVertical, Trash2, Ban, X, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listEmployees, createEmployee, updateEmployee, deleteEmployee, getEmployeeInviteLink } from "@/lib/api/employees.functions";
+import { listEmployees, createEmployee, updateEmployee, deleteEmployee, getEmployeeInviteLink, regenerateEmployeeInviteLink } from "@/lib/api/employees.functions";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { useAuth } from "@/components/auth-provider";
@@ -161,14 +161,15 @@ function EmployeesPage() {
 
 Your WorkCred profile has been created by ${companyName}.
 
-Please claim your profile using the link below:
+Please claim your profile using the secure link below:
 
 ${claimLink}
 
 After claiming your profile, you can:
 
-* View your work history
-* View performance summaries
+* Access your profile
+* View work history
+* View performance reviews
 * Manage verification requests
 * Manage consent settings
 
@@ -206,6 +207,22 @@ WorkCred Team`;
       toast.success("Invite link copied to clipboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to copy invite link");
+    }
+  };
+
+  const handleRegenerateInviteLink = async (employeeId: string) => {
+    try {
+      const res = await regenerateEmployeeInviteLink({ data: { employeeId } });
+      setCreatedEmployeeInfo({
+        fullName: res.fullName,
+        email: "",
+        phone: res.phone || "",
+        invitationId: res.invitationId,
+        companyName: res.companyName,
+      });
+      toast.success("Invite link regenerated successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to regenerate invite link");
     }
   };
 
@@ -431,6 +448,12 @@ WorkCred Team`;
                                 >
                                   <WhatsAppIcon className="mr-2 h-4 w-4 fill-emerald-600" /> Share WhatsApp Invite
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleRegenerateInviteLink(e.id)}
+                                  className="cursor-pointer text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:focus:bg-amber-950/20"
+                                >
+                                  <RefreshCw className="mr-2 h-4 w-4" /> Regenerate Invite Link
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                               </>
                             )}
@@ -561,13 +584,15 @@ WorkCred Team`;
 
 Your WorkCred profile has been created by ${createdEmployeeInfo.companyName}.
 
-Please claim your profile using the link below:
+Please claim your profile using the secure link below:
 
 [Claim Link]
 
 After claiming your profile, you can:
-* View your work history
-* View performance summaries
+
+* Access your profile
+* View work history
+* View performance reviews
 * Manage verification requests
 * Manage consent settings
 

@@ -1,0 +1,1 @@
+import{n as e,s as t,t as n}from"./jsx-runtime-BseJUIpC.js";var r=t(e(),1),i=n(),a=(0,r.createContext)(null);function o({user:e,children:t}){return(0,i.jsx)(a.Provider,{value:{user:e},children:t})}function s(){let e=(0,r.useContext)(a);if(!e)throw Error(`useAuth must be used within an AuthProvider`);return e}export{s as n,o as t};

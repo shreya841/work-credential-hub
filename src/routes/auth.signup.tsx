@@ -209,7 +209,7 @@ const signupAction = createServerFn({ method: "POST" })
     }
   });
 
-const getInvitationEmail = createServerFn({ method: "GET" })
+const getInvitationDetails = createServerFn({ method: "GET" })
   .validator(
     z.object({
       inviteId: z.string(),
@@ -217,17 +217,28 @@ const getInvitationEmail = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const { getDb } = await import("@/lib/db/index.server");
-    const { invitations } = await import("@/lib/db/schema");
+    const { invitations, employees } = await import("@/lib/db/schema");
     const { eq, and } = await import("drizzle-orm");
     const db = getDb();
 
     const [inv] = await db
-      .select({ email: invitations.email })
+      .select({ email: invitations.email, employeeId: invitations.employeeId })
       .from(invitations)
       .where(and(eq(invitations.id, data.inviteId), eq(invitations.status, "pending")))
       .limit(1);
 
-    return inv || null;
+    if (!inv) return null;
+
+    const [emp] = await db
+      .select({ fullName: employees.fullName })
+      .from(employees)
+      .where(eq(employees.id, inv.employeeId))
+      .limit(1);
+
+    return {
+      email: inv.email,
+      fullName: emp?.fullName || "",
+    };
   });
 
 const signupSearchSchema = z.object({
@@ -250,21 +261,30 @@ function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [emailVal, setEmailVal] = useState(prefilledEmail);
+  const [firstNameVal, setFirstNameVal] = useState("");
+  const [lastNameVal, setLastNameVal] = useState("");
   const [role, setRole] = useState<"company_admin" | "employee" | "independent_professional">(
     (prefilledEmail || inviteId) ? "employee" : "company_admin"
   );
 
   useEffect(() => {
-    if (inviteId && !prefilledEmail) {
-      getInvitationEmail({ data: { inviteId } })
+    if (inviteId) {
+      getInvitationDetails({ data: { inviteId } })
         .then((res) => {
-          if (res?.email) {
+          if (res) {
             setEmailVal(res.email);
+            if (res.fullName) {
+              const parts = res.fullName.trim().split(/\s+/);
+              if (parts.length > 0) {
+                setFirstNameVal(parts[0]);
+                setLastNameVal(parts.slice(1).join(" "));
+              }
+            }
           }
         })
         .catch(console.error);
     }
-  }, [inviteId, prefilledEmail]);
+  }, [inviteId]);
 
   useEffect(() => {
     if (prefilledEmail) {
@@ -354,8 +374,8 @@ function Signup() {
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
           <Label>I am a</Label>
-          <Select value={role} onValueChange={(v) => setRole(v as any)}>
-            <SelectTrigger>
+          <Select value={role} onValueChange={(v) => setRole(v as any)} disabled={!!inviteId}>
+            <SelectTrigger disabled={!!inviteId}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -368,11 +388,11 @@ function Signup() {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="firstName">First name</Label>
-            <Input id="firstName" name="firstName" required />
+            <Input id="firstName" name="firstName" required value={firstNameVal} onChange={(e) => setFirstNameVal(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="lastName">Last name</Label>
-            <Input id="lastName" name="lastName" required />
+            <Input id="lastName" name="lastName" required value={lastNameVal} onChange={(e) => setLastNameVal(e.target.value)} />
           </div>
         </div>
         {role === "company_admin" && (
@@ -450,6 +470,8 @@ function Signup() {
             placeholder="you@company.com" 
             value={emailVal} 
             onChange={(e) => setEmailVal(e.target.value)} 
+            readOnly={!!inviteId}
+            className={inviteId ? "bg-muted cursor-not-allowed" : ""}
           />
         </div>
         <div className="space-y-2">
